@@ -1,3 +1,5 @@
 builds
 .envrc
 .cache
+*.vtu
+.idea
