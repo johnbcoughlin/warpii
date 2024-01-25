@@ -28,10 +28,17 @@
 #include <iostream>
 
 #include "rk.h"
+#include "DGBC.h"
+#include "DGFluxPhysics.h"
+#include "DGPhysicsBundle.h"
+#include "DGGhostCellBC.h"
+#include "DGStdMapOfBcsBundle.h"
+#include "DGMultiphysicsOperator.h"
 
 namespace Euler_DG {
+    using namespace DG;
 using namespace dealii;
-constexpr unsigned int testcase = 1;
+constexpr unsigned int testcase = 0;
 constexpr unsigned int dimension = 2;
 constexpr unsigned int n_global_refinements = 3;
 constexpr unsigned int fe_degree = 5;
@@ -163,6 +170,174 @@ euler_flux(const Tensor<1, dim + 2, Number> &q) {
     return flux;
 }
 
+template <int dim>
+class EulerPhysics {
+    public:
+    template <typename Number>
+    Tensor<1, dim + 2, Tensor<1, dim, Number>> analytic_flux(
+        const Tensor<1, dim + 2, Number> &q) const {
+        return euler_flux<dim>(q);
+    }
+    template <typename Number>
+    Tensor<1, dim + 2, Number> numerical_flux(
+        const Tensor<1, dim + 2, Number> &q_in,
+        const Tensor<1, dim + 2, Number> &q_out,
+        const Tensor<1, dim, Number> &outward_normal) const {
+        return numerical_flux(q_in, q_out, outward_normal);
+    }
+};
+
+template <int dim>
+class EulerPhysicsBundle : public DG::DGPhysicsBundle<dim> {
+   public:
+    EulerPhysicsBundle<dim, Number>() {
+        euler_physics = EulerPhysics<dim>();
+    }
+
+    template <int degree, int n_points_1d, typename Number>
+    void local_apply_cell(
+        const MatrixFree<dim, Number> &mf,
+        LinearAlgebra::distributed::Vector<Number> &dst,
+        const LinearAlgebra::distributed::Vector<Number> &src,
+        const std::pair<unsigned int, unsigned int> &cell_range) const {
+        local_apply_cell_for_physics<dim, degree, n_points_1d>(mf, dst, src, cell_range, euler_physics, 0);
+    }
+    template <int degree, int n_points_1d, typename Number>
+    void local_apply_face(
+        const MatrixFree<dim, Number> &mf,
+        LinearAlgebra::distributed::Vector<Number> &dst,
+        const LinearAlgebra::distributed::Vector<Number> &src,
+        const std::pair<unsigned int, unsigned int> &cell_range) const {
+        local_apply_face_for_physics<dim, degree, n_points_1d>(mf, dst, src, cell_range, euler_physics, 0);
+    }
+
+   private:
+    EulerPhysics<dim> euler_physics;
+};
+
+/**
+ * Inflow boundary condition
+ */
+template <int dim, typename Number>
+class EulerInflowBC : DG::DGGhostCellBC<dim, dim + 2, Number> {
+   public:
+    EulerInflowBC<dim, Number>(
+        std::unique_ptr<Function<dim>> _inflow_function) {
+        inflow_function = _inflow_function;
+    }
+    Tensor<1, dim + 2, Number> ghost_cell_value(
+        Tensor<1, dim + 2, Number> &q_in,
+        Tensor<1, dim, Number> &outward_normal,
+        const Point<dim, VectorizedArray<Number>> &p_vectorized);
+
+    Tensor<1, dim + 2, Number> numerical_flux(
+        const Tensor<1, dim + 2, Number> &q_in,
+        const Tensor<1, dim + 2, Number> &q_out,
+        const Tensor<1, dim, Number> &outward_normal) const;
+
+   private:
+    std::unique_ptr<Function<dim>> inflow_function;
+};
+
+template <int dim, typename Number>
+Tensor<1, dim + 2, Number> EulerInflowBC<dim, Number>::ghost_cell_value(
+    Tensor<1, dim + 2, Number> &, Tensor<1, dim, Number> &,
+    const Point<dim, VectorizedArray<Number>> &p_vectorized) {
+    return evaluate_function(*inflow_function, p_vectorized);
+};
+
+template <int dim, typename Number>
+Tensor<1, dim + 2, Number> EulerInflowBC<dim, Number>::numerical_flux(
+    const Tensor<1, dim + 2, Number> &q_in,
+    const Tensor<1, dim + 2, Number> &q_out,
+    const Tensor<1, dim, Number> &outward_normal) const {
+    return euler_numerical_flux(q_in, q_out, outward_normal);
+};
+
+/**
+ * Inflow boundary condition
+ */
+template <int dim, typename Number>
+class EulerSubsonicOutflowBC : DG::DGGhostCellBC<dim, dim + 2, Number> {
+   public:
+    EulerSubsonicOutflowBC<dim, Number>();
+
+    Tensor<1, dim + 2, Number> ghost_cell_value(
+        Tensor<1, dim + 2, Number> &q_in,
+        Tensor<1, dim, Number> &outward_normal,
+        const Point<dim, VectorizedArray<Number>> &p_vectorized);
+
+    Tensor<1, dim + 2, Number> numerical_flux(
+        const Tensor<1, dim + 2, Number> &q_in,
+        const Tensor<1, dim + 2, Number> &q_out,
+        const Tensor<1, dim, Number> &outward_normal) const;
+
+   private:
+};
+
+template <int dim, typename Number>
+Tensor<1, dim + 2, Number>
+EulerSubsonicOutflowBC<dim, Number>::ghost_cell_value(
+    Tensor<1, dim + 2, Number> &q_in, Tensor<1, dim, Number> &,
+    const Point<dim, VectorizedArray<Number>> &) {
+    return q_in;
+};
+
+template <int dim, typename Number>
+Tensor<1, dim + 2, Number> EulerSubsonicOutflowBC<dim, Number>::numerical_flux(
+    const Tensor<1, dim + 2, Number> &q_in,
+    const Tensor<1, dim + 2, Number> &q_out,
+    const Tensor<1, dim, Number> &outward_normal) const {
+    return euler_numerical_flux(q_in, q_out, outward_normal);
+};
+
+/**
+ * Inflow boundary condition
+ */
+template <int dim, typename Number>
+class EulerWallBC : DG::DGGhostCellBC<dim, dim + 2, Number> {
+   public:
+    EulerWallBC<dim, Number>();
+
+    Tensor<1, dim + 2, Number> ghost_cell_value(
+        Tensor<1, dim + 2, Number> &q_in,
+        Tensor<1, dim, Number> &outward_normal,
+        const Point<dim, VectorizedArray<Number>> &p_vectorized);
+
+    Tensor<1, dim + 2, Number> numerical_flux(
+        const Tensor<1, dim + 2, Number> &q_in,
+        const Tensor<1, dim + 2, Number> &q_out,
+        const Tensor<1, dim, Number> &outward_normal) const;
+
+   private:
+};
+
+template <int dim, typename Number>
+Tensor<1, dim + 2, Number> EulerWallBC<dim, Number>::ghost_cell_value(
+    Tensor<1, dim + 2, Number> &q_in, Tensor<1, dim, Number> &outward_normal,
+    const Point<dim, VectorizedArray<Number>> &) {
+    Tensor<1, dim + 2, VectorizedArray<Number>> q_out;
+    auto rho_u_dot_n = q_in[1] * outward_normal[0];
+    for (unsigned int d = 1; d < dim; d++) {
+        rho_u_dot_n += q_in[d + 1] * outward_normal[d];
+    }
+
+    q_out[0] = q_in[0];
+    // Reverse momentum at wall boundaries
+    for (unsigned int d = 0; d < dim; d++) {
+        q_out[d + 1] = q_in[d + 1] - 2. * rho_u_dot_n * outward_normal[d];
+    }
+    q_out[dim + 1] = q_in[dim + 1];
+};
+
+template <int dim, typename Number>
+Tensor<1, dim + 2, Number> EulerWallBC<dim, Number>::numerical_flux(
+    const Tensor<1, dim + 2, Number> &q_in,
+    const Tensor<1, dim + 2, Number> &q_out,
+    const Tensor<1, dim, Number> &outward_normal) const {
+    return euler_numerical_flux(q_in, q_out, outward_normal);
+};
+
 /**
  * Operator overload of * for the flux tensor and normal vector.
  */
@@ -278,7 +453,6 @@ class EulerOperator {
         LinearAlgebra::distributed::Vector<Number> &vector) const;
 
    private:
-    MatrixFree<dim, Number> data;
     TimerOutput &timer;
     std::map<types::boundary_id, std::unique_ptr<Function<dim>>>
         inflow_boundaries;
@@ -286,6 +460,10 @@ class EulerOperator {
         subsonic_outflow_boundaries;
     std::set<types::boundary_id> wall_boundaries;
     std::unique_ptr<Function<dim>> body_force;
+
+    DG::DGMultiphysicsOperator<dim, dim + 2, degree, Number, 
+        EulerPhysicsBundle<dim>, DGStdMapOfBCsBundle<dim, Number>>
+        dg_multiphysics_operator;
 
     void local_apply_inverse_mass_matrix(
         const MatrixFree<dim, Number> &data,
@@ -310,46 +488,28 @@ class EulerOperator {
         LinearAlgebra::distributed::Vector<Number> &dst,
         const LinearAlgebra::distributed::Vector<Number> &src,
         const std::pair<unsigned int, unsigned int> &face_range) const;
+
+    const MatrixFree<dim, Number>& data() const {
+        return dg_multiphysics_operator.get_mf();
+    }
 };
 
 template <int dim, int degree, int n_points_1d>
 EulerOperator<dim, degree, n_points_1d>::EulerOperator(TimerOutput &timer)
-    : timer(timer) {}
+    : timer(timer),
+      dg_multiphysics_operator(timer, EulerPhysicsBundle<dim>(),
+                               DG::DGStdMapOfBCsBundle<dim, Number>()) {}
 
 template <int dim, int degree, int n_points_1d>
 void EulerOperator<dim, degree, n_points_1d>::reinit(
     const Mapping<dim> &mapping, const DoFHandler<dim> &dof_handler) {
-    const std::vector<const DoFHandler<dim> *> dof_handlers = {&dof_handler};
-    const AffineConstraints<double> dummy;
-    const std::vector<const AffineConstraints<double> *> constraints = {&dummy};
-    const std::vector<Quadrature<1>> quadratures = {
-        // Flexible quadrature rule that allows for over-integration to deal
-        // with aliasing
-        QGauss<1>(n_q_points_1d),
-        // ''Tight'' quadrature rule to be used for the mass matrix inversion
-        QGauss<1>(fe_degree + 1)};
-
-    typename MatrixFree<dim, Number>::AdditionalData additional_data;
-    additional_data.mapping_update_flags =
-        (update_gradients | update_JxW_values | update_quadrature_points |
-         update_values);
-    additional_data.mapping_update_flags_inner_faces =
-        (update_JxW_values | update_quadrature_points | update_normal_vectors |
-         update_values);
-    additional_data.mapping_update_flags_boundary_faces =
-        (update_JxW_values | update_quadrature_points | update_normal_vectors |
-         update_values);
-    additional_data.tasks_parallel_scheme =
-        MatrixFree<dim, Number>::AdditionalData::none;
-
-    data.reinit(mapping, dof_handlers, constraints, quadratures,
-                additional_data);
+    dg_multiphysics_operator.reinit(mapping, dof_handler);
 }
 
 template <int dim, int degree, int n_points_1d>
 void EulerOperator<dim, degree, n_points_1d>::initialize_vector(
     LinearAlgebra::distributed::Vector<Number> &vector) const {
-    data.initialize_dof_vector(vector);
+    data().initialize_dof_vector(vector);
 }
 
 template <int dim, int degree, int n_points_1d>
@@ -367,6 +527,9 @@ void EulerOperator<dim, degree, n_points_1d>::set_inflow_boundary(
                 ExcMessage("Expected function with dim+2 components"));
 
     inflow_boundaries[boundary_id] = std::move(inflow_function);
+
+
+    // dg_bcs[boundary_id] = std::unique_ptr();
 }
 
 template <int dim, int degree, int n_points_1d>
@@ -415,6 +578,7 @@ void EulerOperator<dim, degree, n_points_1d>::local_apply_cell(
     LinearAlgebra::distributed::Vector<Number> &dst,
     const LinearAlgebra::distributed::Vector<Number> &src,
     const std::pair<unsigned int, unsigned int> &cell_range) const {
+    auto data = this->data();
     FEEvaluation<dim, degree, n_points_1d, dim + 2, Number> phi(data);
 
     Tensor<1, dim, VectorizedArray<Number>> constant_body_force;
@@ -465,6 +629,7 @@ void EulerOperator<dim, degree, n_points_1d>::local_apply_face(
     LinearAlgebra::distributed::Vector<Number> &dst,
     const LinearAlgebra::distributed::Vector<Number> &src,
     const std::pair<unsigned int, unsigned int> &face_range) const {
+    auto data = this->data();
     FEFaceEvaluation<dim, degree, n_points_1d, dim + 2, Number> phi_in(data,
                                                                        true);
     FEFaceEvaluation<dim, degree, n_points_1d, dim + 2, Number> phi_out(data,
@@ -497,6 +662,7 @@ void EulerOperator<dim, degree, n_points_1d>::local_apply_boundary_face(
     LinearAlgebra::distributed::Vector<Number> &dst,
     const LinearAlgebra::distributed::Vector<Number> &src,
     const std::pair<unsigned int, unsigned int> &face_range) const {
+    auto data = this->data();
     FEFaceEvaluation<dim, degree, n_points_1d, dim + 2, Number> phi(data, true);
 
     for (unsigned int face = face_range.first; face < face_range.second;
@@ -573,6 +739,7 @@ void EulerOperator<dim, degree, n_points_1d>::local_apply_inverse_mass_matrix(
     LinearAlgebra::distributed::Vector<Number> &dst,
     const LinearAlgebra::distributed::Vector<Number> &src,
     const std::pair<unsigned int, unsigned int> &cell_range) const {
+    auto data = this->data();
     FEEvaluation<dim, degree, degree + 1, dim + 2, Number> phi(data, 0, 1);
     MatrixFreeOperators::CellwiseInverseMassMatrix<dim, degree, dim + 2, Number>
         inverse(phi);
@@ -593,6 +760,7 @@ void EulerOperator<dim, degree, n_points_1d>::apply(
     const double current_time,
     const LinearAlgebra::distributed::Vector<Number> &src,
     LinearAlgebra::distributed::Vector<Number> &dst) const {
+    auto data = this->data();
     {
         TimerOutput::Scope t(timer, "apply - integrals");
         for (auto &i : inflow_boundaries) {
@@ -626,52 +794,21 @@ void EulerOperator<dim, degree, n_points_1d>::perform_stage(
     LinearAlgebra::distributed::Vector<Number> &solution,
     LinearAlgebra::distributed::Vector<Number> &next_ri) const {
     {
-        TimerOutput::Scope t(timer, "rk_stage - integrals L_h");
+        TimerOutput::Scope t(timer, "rk_stage - set times");
 
         for (auto &i : inflow_boundaries) i.second->set_time(current_time);
         for (auto &i : subsonic_outflow_boundaries)
             i.second->set_time(current_time);
-
-        data.loop(
-            &EulerOperator::local_apply_cell, &EulerOperator::local_apply_face,
-            &EulerOperator::local_apply_boundary_face, this, vec_ki, current_ri,
-            true, MatrixFree<dim, Number>::DataAccessOnFaces::values,
-            MatrixFree<dim, Number>::DataAccessOnFaces::values);
     }
 
-    {
-        TimerOutput::Scope t(timer, "rk stage - inv mass + vec upd");
-        data.cell_loop(
-            &EulerOperator::local_apply_inverse_mass_matrix, this, next_ri,
-            vec_ki,
-            std::function<void(const unsigned int, const unsigned int)>(),
-            [&](const unsigned int start_range, const unsigned int end_range) {
-                const Number ai = factor_ai;
-                const Number bi = factor_solution;
-                if (ai == Number()) {
-                    /* DEAL_II_OPENMP_SIMD_PRAGMA */
-                    for (unsigned int i = start_range; i < end_range; ++i) {
-                        const Number k_i = next_ri.local_element(i);
-                        const Number sol_i = solution.local_element(i);
-                        solution.local_element(i) = sol_i + bi * k_i;
-                    }
-                } else {
-                    /* DEAL_II_OPENMP_SIMD_PRAGMA */
-                    for (unsigned int i = start_range; i < end_range; ++i) {
-                        const Number k_i = next_ri.local_element(i);
-                        const Number sol_i = solution.local_element(i);
-                        solution.local_element(i) = sol_i + bi * k_i;
-                        next_ri.local_element(i) = sol_i + ai * k_i;
-                    }
-                }
-            });
-    }
+    dg_multiphysics_operator.perform_stage(current_time, factor_solution, factor_ai, current_ri, vec_ki, solution, next_ri);
 }
 
 template <int dim, int degree, int n_points_1d>
 void EulerOperator<dim, degree, n_points_1d>::project(
     const Function<dim> &function,
     LinearAlgebra::distributed::Vector<Number> &solution) const {
+    auto data = this->data();
     FEEvaluation<dim, degree, degree + 1, dim + 2, Number> phi(data, 0, 1);
     MatrixFreeOperators::CellwiseInverseMassMatrix<dim, degree, dim + 2, Number>
         inverse(phi);
@@ -692,6 +829,7 @@ template <int dim, int degree, int n_points_1d>
 std::array<double, 3> EulerOperator<dim, degree, n_points_1d>::compute_errors(
     const Function<dim> &function,
     const LinearAlgebra::distributed::Vector<Number> &solution) const {
+    auto data = this->data();
     TimerOutput::Scope t(timer, "compute errors");
     double errors_squared[3] = {};
     FEEvaluation<dim, degree, n_points_1d, dim + 2, Number> phi(data, 0, 0);
@@ -730,6 +868,7 @@ std::array<double, 3> EulerOperator<dim, degree, n_points_1d>::compute_errors(
 template <int dim, int degree, int n_points_1d>
 double EulerOperator<dim, degree, n_points_1d>::compute_cell_transport_speed(
     const LinearAlgebra::distributed::Vector<Number> &solution) const {
+    auto data = this->data();
     TimerOutput::Scope t(timer, "compute transport speed");
     Number max_transport = 0;
     FEEvaluation<dim, degree, degree + 1, dim + 2, Number> phi(data, 0, 1);

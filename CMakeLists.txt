@@ -8,11 +8,12 @@ set(DEAL_II_WITH_MPI ON)
 
 find_package(MPI REQUIRED)
 
+include_directories(/Users/jack/usr/include)
+link_directories(/Users/jack/usr/lib)
+
 deal_ii_initialize_cached_variables()
 
 add_subdirectory(src)
 
-add_executable(euler src/euler.cc)
-deal_ii_setup_target(euler)
-
-target_link_libraries(euler libwarpii)
+add_executable(main src/main.cc)
+deal_ii_setup_target(main)
