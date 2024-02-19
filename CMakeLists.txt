@@ -13,7 +13,4 @@ link_directories(/Users/jack/usr/lib)
 
 deal_ii_initialize_cached_variables()
 
-add_subdirectory(src)
-
-add_executable(main src/main.cc)
-deal_ii_setup_target(main)
+add_subdirectory(codes)

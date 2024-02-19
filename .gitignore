@@ -3,3 +3,4 @@ builds
 .cache
 *.vtu
 .idea
+.DS_Store

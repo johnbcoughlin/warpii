@@ -1,0 +1,53 @@
+\documentclass{article}
+
+\title{Euler equations in 2D cylindrical coordinates}
+\input{~/dotfiles/latex/notes_header.tex}
+
+\begin{document}
+\maketitle
+
+The compressible Euler equations are
+\begin{align}
+    \partial_t (\rho) + \nabla \cdot (\rho \bm{u}) &= 0, \\
+    \partial_t (\rho \bm{u}) + \nabla \cdot (\rho \bm{u} \otimes \bm{u}) + \nabla p &= 0, \\
+    \partial_t (E) + \nabla \cdot ((E + p) \bm{u}) &= 0.
+\end{align}
+In cylindrical coordinates in the $r, z$ plane, the del operators are
+\begin{align*}
+    \nabla f &= \frac{\partial f}{\partial r} \hat{\bm{r}} + \frac{\partial f}{\partial z} \hat{\bm{z}}, \\
+    \nabla \cdot \bm{g} &= \frac{1}{r} \frac{\partial (r g_r)}{\partial r} + \frac{\partial g_z}{\partial z}.
+\end{align*}
+Expanding the Euler equations, then, we get the following:
+\begin{align*}
+    \partial_t \rho + \frac{1}{r} \frac{\partial (r \rho u_r)}{\partial r} + \frac{\partial (\rho u_z)}{\partial z} &= 0, \\
+    \partial_t (\rho \bm{u}) + \frac{1}{r} \frac{\partial (r \rho u_r \bm{u})}{\partial r} + \frac{\partial (\rho u_z \bm{u})}{\partial z} + \frac{\partial p}{\partial r} \hat{\bm{r}} + \frac{\partial p}{\partial z} \hat{\bm{z}} &= 0, \\
+    \partial_t E + \frac{1}{r} \frac{\partial (r(E + p) u_r)}{\partial r} + \frac{\partial ((E + p) u_z)}{\partial z} &= 0.
+\end{align*}
+
+The issue with this set of equations is that the terms with a factor of $1/r$ cannot be put in conservation form.
+For example, if we imagine discretizing the continuity equation as written directly in a finite difference scheme,
+we would have
+\begin{align*}
+    \frac{\mathrm{d} \rho_i}{\mathrm{d} t} = -\frac{1}{{\color{red} r}} \frac{(r \rho u_r)_{i+1/2} - (r \rho u_r)_{i-1/2}}{\Delta r}.
+\end{align*}
+The terms at the cell faces $i\pm1/2$ present no difficulty, but the question is at what point is the factor of $1/r$ colored in red supposed to be evaluated?
+
+To deal with this problem, one approach is to expand the $\frac{\partial}{\partial r}$ terms, and move all non-derivative terms to the right-hand side:
+\begin{align}
+    \partial_t \rho + \frac{\partial (\rho u_r)}{\partial r} + \frac{\partial (\rho u_z)}{\partial z} &= -\frac{\rho u_r}{r}, \\
+    \partial_t (\rho \bm{u}) + \frac{\partial (\rho u_r \bm{u})}{\partial r} + \frac{\partial (\rho u_z \bm{u})}{\partial z} + \frac{\partial p}{\partial r} \hat{\bm{r}} + \frac{\partial p}{\partial z} \hat{\bm{z}} &= -\frac{\rho u_r \bm{u}}{r}, \\
+    \partial_t E + \frac{\partial ((E + p) u_r)}{\partial r} + \frac{\partial ((E + p) u_z)}{u_z} &= -\frac{(E + p) u_r}{r}.
+\end{align}
+
+Another approach is to multiply through by $r$:
+\begin{align}
+    \partial_t (r \rho) + \frac{\partial (r \rho u_r)}{\partial r} + \frac{\partial (r \rho u_z)}{\partial z} &= 0, \\
+    \partial_t (r \rho \bm{u}) + \frac{\partial (r \rho u_r \bm{u})}{\partial r} + \frac{\partial (r \rho u_z \bm{u})}{\partial z} + r \frac{\partial p}{\partial r} \hat{\bm{r}} + \frac{\partial (r p)}{\partial z}\hat{\bm{z}} &= 0, \\
+    \partial_t (r E) + \frac{\partial (r(E+p) u_r)}{\partial r} + \frac{\partial (r(E + p) u_z)}{\partial z} &= 0.
+\end{align}
+We now observe that the momentum equation can be rewritten as
+\begin{align*}
+\partial_t (r \rho \bm{u}) + \frac{\partial (r (\rho u_r \bm{u} + p \hat{\bm{r}}))}{\partial r} + \frac{\partial (r(\rho u_z \bm{u} + p \hat{\bm{z}}))}{\partial z} = p \hat{\bm{r}}
+\end{align*}
+
+\end{document}

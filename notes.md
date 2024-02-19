@@ -1,0 +1,31 @@
+- Mesh
+- Variables:
+    - Mesh variables
+        - express these as "variable packs", e.g. MHD, Euler, MHD+Euler, etc.
+        - components
+    - non-mesh variables
+        - components
+- Timestepping scheme:
+    - RK<whatever>
+        - DG operator
+            - The DG operator knows exactly which variables are in which components
+            - boundary conditions
+            - Including diffusive terms, which we resolve ``inline''.
+            - optional terms such as resistivity should be turned on or off based
+              on whether a coefficient vanishes (we'll skip computations if possible).
+
+        - per-stage variable adjusters
+    - DIRK
+        - explicit operator
+            - boundary conditions
+        - implicit operator
+            - boundary conditions
+        - per-stage variable adjusters
+    - time-independent
+        - operator
+            - boundary conditions
+        - RHS
+- Writeouts
+    - format
+    - dt
+- Integrators
