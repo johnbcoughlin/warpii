@@ -13,4 +13,5 @@ link_directories(/Users/jack/usr/lib)
 
 deal_ii_initialize_cached_variables()
 
+add_subdirectory(src)
 add_subdirectory(codes)

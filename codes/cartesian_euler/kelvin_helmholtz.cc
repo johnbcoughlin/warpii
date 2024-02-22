@@ -27,62 +27,60 @@
 #include <iostream>
 #include <memory>
 
-#include "RadialEulerOperator.h"
-#include "RadialEulerPostprocessor.h"
+#include "CartesianEulerPostProcessor.h"
+#include "CartesianEulerOperator.h"
 #include "rk.h"
 
-namespace CylindricalEuler {
-using namespace dealii;
+namespace CartesianEuler {
+    using namespace dealii;
 
 constexpr unsigned int fe_degree = 5;
 constexpr LowStorageRungeKuttaScheme lsrk_scheme = stage_5_order_4;
 const double courant_number = 0.15 / std::pow(fe_degree, 1.5);
 constexpr double gamma = 5.0 / 3.0;
-constexpr double final_time = 40.0;
+constexpr double k = 1.2 * numbers::PI;
+constexpr double final_time = 200.0;
 constexpr double output_tick = 0.20;
 
-constexpr double k = 0.4 * numbers::PI;
-
-using Number = double;
-
 class KHInitialCondition : public Function<2> {
-   public:
-    KHInitialCondition(const double k, const double gamma, const double time)
-        : Function<2>(4, time), k(k), gamma(gamma) {}
+    public:
+        KHInitialCondition(const double k, const double gamma, const double time)
+            : Function<2>(4, time), k(k), gamma(gamma) {}
 
-    virtual double value(const Point<2> &p,
-                         const unsigned int component = 0) const override;
+        virtual double value(const Point<2> &p, const unsigned int component = 0) const override;
 
-   private:
-    double k;
-    double gamma;
+    private:
+        double k;
+        double gamma;
 };
 
-/*
- * A jet with sheared axial velocity and constant density throughout.
- */
 double KHInitialCondition::value(const Point<2> &p,
-                                 const unsigned int component) const {
-    double r = p[0];
-    double z = p[1];
-    double boundary_r = 2.0 + 0.1 * sin(k * z);
-    double density = 1.0;
-    double uz = 0.1 * std::tanh(-(r - boundary_r) * 4.0);
-    //double uz = 1.0;
-    //double uz = std::exp(-(r * r) * (2.0 + 0.2 * std::sin(k * z)));
-    //double uz = std::sin(r + k);
+        const unsigned int component) const {
+
+    double x = p[0];
+    double y = p[1];
+
+    double boundary_x = 0.0 + 0.001 * sin(k * y);
     double pressure = 1.0;
-    double KE = 0.5 * density * uz * uz;
+    double density_left = 1.0;
+    double density_right = 0.3;
+
+    double density_jump = density_left - density_right;
+    double density = 0.5 * density_jump + density_right + 0.5 * density_jump * std::tanh(-(x - boundary_x) * 20.0);
+
+    double uy = 0.1 * std::tanh(-x * 20.0);
+
+    double KE = 0.5 * density * uy * uy;
     double energy = KE + pressure / (gamma - 1.0);
 
     if (component == 0) {
-        return r * density;
+        return density;
     } else if (component == 1) {
         return 0.0;
     } else if (component == 2) {
-        return r * density * uz;
+        return density * uy;
     } else if (component == 3) {
-        return r * energy;
+        return energy;
     } else {
         Assert(false, ExcNotImplemented());
         return 0.0;
@@ -90,18 +88,16 @@ double KHInitialCondition::value(const Point<2> &p,
 }
 
 class KHProblem {
-   public:
-    KHProblem(double gamma, double k);
+    public:
+        KHProblem(double gamma, double k);
 
-    void run();
+        void run();
 
-   private:
-    double gamma;
-    double k;
-
-    double time;
-    double time_step;
-
+    private:
+        double gamma;
+        double k;
+        double time;
+        double time_step;
     ConditionalOStream pcout;
     Triangulation<2> triangulation;
     FESystem<2> fe;
@@ -110,7 +106,7 @@ class KHProblem {
 
     TimerOutput timer;
 
-    RadialEulerOperator<2, fe_degree, fe_degree + 1> euler_operator;
+    CartesianEulerOperator<2, fe_degree, fe_degree+1> euler_operator;
 
     void make_grid_and_dofs();
 
@@ -120,13 +116,14 @@ class KHProblem {
 
     void project(const Function<1> &function,
                  LinearAlgebra::distributed::Vector<Number> &solution) const;
+
 };
 
 KHProblem::KHProblem(double gamma, double k)
     : gamma(gamma),
-      k(k),
-      time(0.0),
-      time_step(0.0),
+    k(k),
+    time(0.0),
+    time_step(0.0),
       pcout(std::cout, Utilities::MPI::this_mpi_process(MPI_COMM_WORLD) == 0),
       fe(FE_DGQ<2>(fe_degree) ^ (4)),
       mapping(fe_degree),
@@ -135,16 +132,15 @@ KHProblem::KHProblem(double gamma, double k)
       euler_operator(timer, gamma) {}
 
 void KHProblem::make_grid_and_dofs() {
-    Point<2> bottomleft(0.0, 0.0);
-    Point<2> topright(4.0, (2*numbers::PI) / k);
+    Point<2> bottomleft(-0.5, 0.0);
+    Point<2> topright(0.5, (2*numbers::PI) / k);
 
-    GridGenerator::subdivided_hyper_rectangle(triangulation, 
-            {8, 8}, bottomleft, topright,
-                                   /*colorize*/ true);
-    triangulation.refine_global(3);
+    GridGenerator::subdivided_hyper_rectangle(triangulation,
+            {4, 4}, bottomleft, topright, true);
+    triangulation.refine_global(2);
     const auto ic = KHInitialCondition(k, gamma, 0.0);
 
-    euler_operator.bc_map().set_axial_boundary(0);
+    euler_operator.bc_map().set_wall_boundary(0);
     euler_operator.bc_map().set_wall_boundary(1);
 
     std::vector<GridTools::PeriodicFacePair<
@@ -166,10 +162,9 @@ void KHProblem::make_grid_and_dofs() {
 }
 
 void KHProblem::output_results(const unsigned int result_number) {
-  {
     TimerOutput::Scope t(timer, "output");
 
-    RadialEulerPostprocessor<2> postprocessor(gamma);
+    CartesianEulerPostprocessor<2> postprocessor(gamma);
     DataOut<2> data_out;
 
     DataOutBase::VtkFlags flags;
@@ -179,10 +174,10 @@ void KHProblem::output_results(const unsigned int result_number) {
     data_out.attach_dof_handler(dof_handler);
     {
       std::vector<std::string> names;
-      names.emplace_back("r_density");
+      names.emplace_back("density");
       for (unsigned int d = 0; d < 2; ++d)
-        names.emplace_back("r_momentum");
-      names.emplace_back("r_energy");
+        names.emplace_back("momentum");
+      names.emplace_back("energy");
 
       std::vector<DataComponentInterpretation::DataComponentInterpretation>
           interpretation;
@@ -208,7 +203,6 @@ void KHProblem::output_results(const unsigned int result_number) {
     const std::string filename =
         "solution_" + Utilities::int_to_string(result_number, 3) + ".vtu";
     data_out.write_vtu_in_parallel(filename, MPI_COMM_WORLD);
-  }
 }
 
 void KHProblem::run() {
@@ -286,10 +280,10 @@ void KHProblem::run() {
   pcout << std::endl;
 }
 
-}  // namespace CylindricalEuler
+}
 
 int main(int argc, char **argv) {
-  using namespace CylindricalEuler;
+  using namespace CartesianEuler;
   using namespace dealii;
 
   Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);

@@ -1,4 +1,7 @@
-#add_executable(cylindrical_euler cylindrical_euler/main.cc)
-add_executable(khi cylindrical_euler/kelvin_helmholtz.cc)
-deal_ii_setup_target(khi)
+add_executable(cylindrical_khi cylindrical_euler/kelvin_helmholtz.cc)
+target_link_libraries(cylindrical_khi warpii)
+deal_ii_setup_target(cylindrical_khi)
 
+add_executable(cartesian_khi cartesian_euler/kelvin_helmholtz.cc)
+target_link_libraries(cartesian_khi warpii)
+deal_ii_setup_target(cartesian_khi)

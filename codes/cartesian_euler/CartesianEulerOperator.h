@@ -5,6 +5,7 @@
 #include <deal.II/base/logstream.h>
 #include <deal.II/base/time_stepping.h>
 #include <deal.II/base/timer.h>
+#include <deal.II/base/types.h>
 #include <deal.II/base/utilities.h>
 #include <deal.II/base/vectorization.h>
 #include <deal.II/distributed/tria.h>
@@ -24,19 +25,19 @@
 #include <iomanip>
 #include <iostream>
 
+#include "cartesian_euler.h"
 #include "euler/bc_helper.h"
 #include "function_eval.h"
-#include "radial_euler.h"
 
-namespace CylindricalEuler {
+namespace CartesianEuler {
 using namespace dealii;
 
 using Number = double;
 
 template <int dim, int degree, int n_points_1d>
-class RadialEulerOperator {
+class CartesianEulerOperator {
    public:
-    RadialEulerOperator(TimerOutput &timer, double gamma)
+    CartesianEulerOperator(TimerOutput &timer, double gamma)
         : timer(timer), gamma(gamma) {}
 
     void reinit(const Mapping<dim> &mapping,
@@ -68,13 +69,14 @@ class RadialEulerOperator {
     double compute_cell_transport_speed(
         const LinearAlgebra::distributed::Vector<Number> &solution) const;
 
-    const EulerBCMap<dim>& bc_map() const {
+    const EulerBCMap<dim> bc_map() const {
         return _bc_map;
     }
 
     EulerBCMap<dim>& bc_map() {
         return _bc_map;
     }
+
 
    private:
     MatrixFree<dim, Number> data;
@@ -108,7 +110,7 @@ class RadialEulerOperator {
 };
 
 template <int dim, int degree, int n_points_1d>
-void RadialEulerOperator<dim, degree, n_points_1d>::reinit(
+void CartesianEulerOperator<dim, degree, n_points_1d>::reinit(
     const Mapping<dim> &mapping, const DoFHandler<dim> &dof_handler) {
     const std::vector<const DoFHandler<dim> *> dof_handlers = {&dof_handler};
     const AffineConstraints<double> dummy;
@@ -134,13 +136,13 @@ void RadialEulerOperator<dim, degree, n_points_1d>::reinit(
 }
 
 template <int dim, int degree, int n_points_1d>
-void RadialEulerOperator<dim, degree, n_points_1d>::initialize_vector(
+void CartesianEulerOperator<dim, degree, n_points_1d>::initialize_vector(
     LinearAlgebra::distributed::Vector<Number> &vector) const {
     data.initialize_dof_vector(vector);
 }
 
 template <int dim, int degree, int n_points_1d>
-void RadialEulerOperator<dim, degree, n_points_1d>::local_apply_cell(
+void CartesianEulerOperator<dim, degree, n_points_1d>::local_apply_cell(
     const MatrixFree<dim, Number> &,
     LinearAlgebra::distributed::Vector<Number> &dst,
     const LinearAlgebra::distributed::Vector<Number> &src,
@@ -155,25 +157,15 @@ void RadialEulerOperator<dim, degree, n_points_1d>::local_apply_cell(
         for (const unsigned int q : phi.quadrature_point_indices()) {
             const auto w_q = phi.get_value(q);
             phi.submit_gradient(
-                radial_euler_flux<dim, VectorizedArray<Number>>(w_q, gamma), q);
-
-            Tensor<1, dim + 2, VectorizedArray<Number>> source;
-            const auto rp_q =
-                radial_euler_pressure<dim, VectorizedArray<Number>>(w_q, gamma);
-            const auto r = phi.quadrature_point(q)[0];
-            source[1] = rp_q / r;
-            // std::cout << "p: " << source[1] << ", rpq: " << rp_q <<
-            // std::endl;
-            phi.submit_value(source, q);
+                euler_flux<dim, VectorizedArray<Number>>(w_q, gamma), q);
         }
 
-        phi.integrate_scatter(
-            EvaluationFlags::values | EvaluationFlags::gradients, dst);
+        phi.integrate_scatter(EvaluationFlags::gradients, dst);
     }
 }
 
 template <int dim, int degree, int n_points_1d>
-void RadialEulerOperator<dim, degree, n_points_1d>::local_apply_face(
+void CartesianEulerOperator<dim, degree, n_points_1d>::local_apply_face(
     const MatrixFree<dim, Number> &,
     LinearAlgebra::distributed::Vector<Number> &dst,
     const LinearAlgebra::distributed::Vector<Number> &src,
@@ -192,10 +184,9 @@ void RadialEulerOperator<dim, degree, n_points_1d>::local_apply_face(
         phi_m.gather_evaluate(src, EvaluationFlags::values);
 
         for (const unsigned int q : phi_m.quadrature_point_indices()) {
-            const auto r = phi_m.quadrature_point(q);
-            const auto numerical_flux = radial_euler_numerical_flux<dim>(
+            const auto numerical_flux = euler_numerical_flux<dim>(
                 phi_m.get_value(q), phi_p.get_value(q), phi_m.normal_vector(q),
-                r, gamma);
+                gamma);
             phi_m.submit_value(-numerical_flux, q);
             phi_p.submit_value(numerical_flux, q);
         }
@@ -206,11 +197,12 @@ void RadialEulerOperator<dim, degree, n_points_1d>::local_apply_face(
 }
 
 template <int dim, int degree, int n_points_1d>
-void RadialEulerOperator<dim, degree, n_points_1d>::local_apply_boundary_face(
-    const MatrixFree<dim, Number> &,
-    LinearAlgebra::distributed::Vector<Number> &dst,
-    const LinearAlgebra::distributed::Vector<Number> &src,
-    const std::pair<unsigned int, unsigned int> &face_range) const {
+void CartesianEulerOperator<dim, degree, n_points_1d>::
+    local_apply_boundary_face(
+        const MatrixFree<dim, Number> &,
+        LinearAlgebra::distributed::Vector<Number> &dst,
+        const LinearAlgebra::distributed::Vector<Number> &src,
+        const std::pair<unsigned int, unsigned int> &face_range) const {
     FEFaceEvaluation<dim, degree, n_points_1d, dim + 2, Number> phi(data, true);
 
     for (unsigned int face = face_range.first; face < face_range.second;
@@ -218,19 +210,19 @@ void RadialEulerOperator<dim, degree, n_points_1d>::local_apply_boundary_face(
         phi.reinit(face);
         phi.gather_evaluate(src, EvaluationFlags::values);
 
+        const auto boundary_id = data.get_boundary_id(face);
+
         for (const unsigned int q : phi.quadrature_point_indices()) {
             const auto w_m = phi.get_value(q);
             const auto normal = phi.normal_vector(q);
 
-            auto r_rho_u_dot_n = w_m[1] * normal[0];
-            for (unsigned int d = 1; d < dim; ++d) {
-                r_rho_u_dot_n += w_m[1 + d] * normal[d];
+            auto rho_u_dot_n = w_m[1] * normal[0];
+            for (unsigned int d = 1; d < dim; d++) {
+                rho_u_dot_n += w_m[1 + d] * normal[d];
             }
 
             bool at_outflow = false;
-
             Tensor<1, dim + 2, VectorizedArray<Number>> w_p;
-            const auto boundary_id = data.get_boundary_id(face);
             if (_bc_map.is_inflow(boundary_id)) {
                 w_p = evaluate_function(*_bc_map.get_inflow(boundary_id),
                                         phi.quadrature_point(q));
@@ -243,61 +235,42 @@ void RadialEulerOperator<dim, degree, n_points_1d>::local_apply_boundary_face(
             } else if (_bc_map.is_supersonic_outflow(boundary_id)) {
                 w_p = w_m;
                 at_outflow = true;
-            } else if (_bc_map.is_axial(boundary_id)) {
+            } else if (_bc_map.is_wall(boundary_id)) {
                 // Copy out density
                 w_p[0] = w_m[0];
-                // Zero radial velocity via mirror principle
-                w_p[1] = -w_m[0];
-                if (dim == 2) {
-                    // Copy out axial velocity
-                    w_p[2] = w_m[2];
-                }
-                // Copy out energy
-                w_p[dim + 1] = w_m[dim + 1];
-            } else if (_bc_map.is_wall(boundary_id)) {
-                w_p[0] = w_m[0];
                 for (unsigned int d = 0; d < dim; d++) {
-                    w_p[d + 1] = w_m[d + 1] - 2.0 * r_rho_u_dot_n * normal[d];
+                    w_p[d + 1] = w_m[d + 1] - 2.0 * rho_u_dot_n * normal[d];
                 }
                 w_p[dim + 1] = w_m[dim + 1];
-            } else
-                AssertThrow(false,
-                            ExcMessage("Unknown boundary id, did "
-                                       "you set a boundary condition for "
-                                       "this part of the domain boundary?"));
-
-            const auto r = phi.quadrature_point(q);
-            auto flux = radial_euler_numerical_flux<dim>(w_m, w_p, normal, r,
-                                                         gamma, false);
-
-            if (_bc_map.is_axial(boundary_id)) {
-                for (unsigned int c = 0; c < dim + 2; c++) {
-                    flux[c] = 0.0;
-                }
+            } else {
+                AssertThrow(
+                    false,
+                    ExcMessage(
+                        "Unknown boundary id, did you set a boundary condition "
+                        "for this part of the domain boundary?"));
             }
+
+            auto flux = euler_numerical_flux<dim>(w_m, w_p, normal, gamma);
 
             if (at_outflow) {
                 for (unsigned int v = 0; v < VectorizedArray<Number>::size();
                      ++v) {
-                    if (r_rho_u_dot_n[v] < -1e-12) {
+                    if (rho_u_dot_n[v] < -1e-12) {
                         for (unsigned int d = 0; d < 1; ++d) {
                             flux[d + 1][v] = 0.;
                         }
                     }
                 }
-            } else {
-                // std::cout << "inflow flux: " << flux << std::endl;
             }
 
             phi.submit_value(-flux, q);
         }
-
         phi.integrate_scatter(EvaluationFlags::values, dst);
     }
 }
 
 template <int dim, int degree, int n_points_1d>
-void RadialEulerOperator<dim, degree, n_points_1d>::
+void CartesianEulerOperator<dim, degree, n_points_1d>::
     local_apply_inverse_mass_matrix(
         const MatrixFree<dim, Number> &,
         LinearAlgebra::distributed::Vector<Number> &dst,
@@ -319,7 +292,7 @@ void RadialEulerOperator<dim, degree, n_points_1d>::
 }
 
 template <int dim, int degree, int n_points_1d>
-void RadialEulerOperator<dim, degree, n_points_1d>::perform_stage(
+void CartesianEulerOperator<dim, degree, n_points_1d>::perform_stage(
     const Number current_time, const Number factor_solution,
     const Number factor_ai,
     const LinearAlgebra::distributed::Vector<Number> &current_ri,
@@ -329,14 +302,14 @@ void RadialEulerOperator<dim, degree, n_points_1d>::perform_stage(
     {
         TimerOutput::Scope t(timer, "rk_stage - integrals L_h");
 
-        for (auto &i : bc_map().inflow_boundaries()) i.second->set_time(current_time);
-        for (auto &i : bc_map().subsonic_outflow_boundaries())
+        for (auto &i : _bc_map.inflow_boundaries()) i.second->set_time(current_time);
+        for (auto &i : _bc_map.subsonic_outflow_boundaries())
             i.second->set_time(current_time);
 
-        data.loop(&RadialEulerOperator::local_apply_cell,
-                  &RadialEulerOperator::local_apply_face,
-                  &RadialEulerOperator::local_apply_boundary_face, this, vec_ki,
-                  current_ri, true,
+        data.loop(&CartesianEulerOperator::local_apply_cell,
+                  &CartesianEulerOperator::local_apply_face,
+                  &CartesianEulerOperator::local_apply_boundary_face, this,
+                  vec_ki, current_ri, true,
                   MatrixFree<dim, Number>::DataAccessOnFaces::values,
                   MatrixFree<dim, Number>::DataAccessOnFaces::values);
     }
@@ -344,7 +317,7 @@ void RadialEulerOperator<dim, degree, n_points_1d>::perform_stage(
     {
         TimerOutput::Scope t(timer, "rk_stage - inv mass + vec upd");
         data.cell_loop(
-            &RadialEulerOperator::local_apply_inverse_mass_matrix, this,
+            &CartesianEulerOperator::local_apply_inverse_mass_matrix, this,
             next_ri, vec_ki,
             std::function<void(const unsigned int, const unsigned int)>(),
             [&](const unsigned int start_range, const unsigned int end_range) {
@@ -371,7 +344,7 @@ void RadialEulerOperator<dim, degree, n_points_1d>::perform_stage(
 }
 
 template <int dim, int degree, int n_points_1d>
-void RadialEulerOperator<dim, degree, n_points_1d>::project(
+void CartesianEulerOperator<dim, degree, n_points_1d>::project(
     const Function<dim> &function,
     LinearAlgebra::distributed::Vector<Number> &solution) const {
     FEEvaluation<dim, degree, degree + 1, dim + 2, Number> phi(data, 0, 1);
@@ -391,7 +364,7 @@ void RadialEulerOperator<dim, degree, n_points_1d>::project(
 
 template <int dim, int degree, int n_points_1d>
 double
-RadialEulerOperator<dim, degree, n_points_1d>::compute_cell_transport_speed(
+CartesianEulerOperator<dim, degree, n_points_1d>::compute_cell_transport_speed(
     const LinearAlgebra::distributed::Vector<Number> &solution) const {
     TimerOutput::Scope t(timer, "compute transport speed");
     Number max_transport = 0;
@@ -403,8 +376,8 @@ RadialEulerOperator<dim, degree, n_points_1d>::compute_cell_transport_speed(
         VectorizedArray<Number> local_max = 0.;
         for (const unsigned int q : phi.quadrature_point_indices()) {
             const auto solution = phi.get_value(q);
-            const auto velocity = radial_euler_velocity<dim>(solution);
-            const auto pressure = radial_euler_pressure<dim>(solution, gamma);
+            const auto velocity = euler_velocity<dim>(solution);
+            const auto pressure = euler_pressure<dim>(solution, gamma);
 
             const auto inverse_jacobian = phi.inverse_jacobian(q);
             const auto convective_speed = inverse_jacobian * velocity;
@@ -434,14 +407,14 @@ RadialEulerOperator<dim, degree, n_points_1d>::compute_cell_transport_speed(
                 local_max, max_eigenvalue * speed_of_sound + convective_limit);
         }
 
-        for (unsigned int v = 0; v < data.n_active_entries_per_cell_batch(cell);
-             ++v)
+        for (unsigned int v = 0; v < data.n_active_entries_per_cell_batch(cell); ++v) {
             for (unsigned int d = 0; d < 3; ++d)
                 max_transport = std::max(max_transport, local_max[v]);
+        }
     }
 
     max_transport = Utilities::MPI::max(max_transport, MPI_COMM_WORLD);
 
     return max_transport;
 }
-}  // namespace CylindricalEuler
+}  // namespace CartesianEuler

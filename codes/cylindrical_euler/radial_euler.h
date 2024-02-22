@@ -2,6 +2,7 @@
 
 #include <deal.II/base/point.h>
 #include <deal.II/base/tensor.h>
+#include "tensor_utils.h"
 
 namespace CylindricalEuler {
 using namespace dealii;
@@ -62,16 +63,6 @@ radial_euler_flux(const Tensor<1, dim + 2, Number> &conserved_variables, double 
 
     //std::cout << "Nonzero radial density flux: " << flux[0][0] << std::endl;
     return flux;
-}
-
-template <int n_components, int dim, typename Number>
-inline DEAL_II_ALWAYS_INLINE Tensor<1, n_components, Number> operator*(
-    const Tensor<1, n_components, Tensor<1, dim, Number>> &matrix,
-    const Tensor<1, dim, Number> &vector) {
-    Tensor<1, n_components, Number> result;
-    for (unsigned int d = 0; d < n_components; ++d)
-        result[d] = matrix[d] * vector;
-    return result;
 }
 
 template <int dim, typename Number>
