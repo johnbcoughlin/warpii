@@ -35,12 +35,12 @@ namespace CartesianEuler {
     using namespace dealii;
 
 constexpr unsigned int fe_degree = 5;
-constexpr LowStorageRungeKuttaScheme lsrk_scheme = stage_5_order_4;
-const double courant_number = 0.15 / std::pow(fe_degree, 1.5);
+//constexpr LowStorageRungeKuttaScheme lsrk_scheme = stage_5_order_4;
+const double courant_number = 0.15 / std::pow(fe_degree, 1.5) / 2;
 constexpr double gamma = 5.0 / 3.0;
 constexpr double k = 1.2 * numbers::PI;
-constexpr double final_time = 200.0;
-constexpr double output_tick = 0.20;
+constexpr double final_time = 40.0;
+constexpr double output_tick = 0.50;
 
 class KHInitialCondition : public Function<2> {
     public:
@@ -60,7 +60,7 @@ double KHInitialCondition::value(const Point<2> &p,
     double x = p[0];
     double y = p[1];
 
-    double boundary_x = 0.0 + 0.001 * sin(k * y);
+    double boundary_x = 0.0 + 0.003 * sin(k * y);
     double pressure = 1.0;
     double density_left = 1.0;
     double density_right = 0.3;
@@ -221,7 +221,9 @@ void KHProblem::run() {
 
   make_grid_and_dofs();
 
-  const LowStorageRungeKuttaIntegrator integrator(lsrk_scheme);
+  //const LowStorageRungeKuttaIntegrator integrator(lsrk_scheme);
+  SSPRK2Integrator<Number, CartesianEulerOperator<2, fe_degree, fe_degree+1>> integrator;
+  integrator.reinit(solution, 3);
 
   LinearAlgebra::distributed::Vector<Number> rk_register_1;
   LinearAlgebra::distributed::Vector<Number> rk_register_2;
@@ -239,7 +241,7 @@ void KHProblem::run() {
       Utilities::MPI::min(min_vertex_distance, MPI_COMM_WORLD);
 
   double max_time_step = 1e-2;
-  time_step = courant_number * integrator.n_stages() /
+  time_step = courant_number * 2 /
               euler_operator.compute_cell_transport_speed(solution);
   time_step = std::min(time_step, max_time_step);
   pcout << "Time step size: " << time_step
@@ -256,7 +258,7 @@ void KHProblem::run() {
   while (time < final_time - 1e-12) {
     ++timestep_number;
     if (timestep_number % 5 == 0)
-      time_step = courant_number * integrator.n_stages() /
+      time_step = courant_number * 2 /
                   Utilities::truncate_to_n_digits(
                       euler_operator.compute_cell_transport_speed(solution), 3);
 
@@ -264,16 +266,17 @@ void KHProblem::run() {
 
     {
       TimerOutput::Scope t(timer, "rk time stepping total");
-      integrator.perform_time_step(euler_operator, time, time_step, solution,
-                                   rk_register_1, rk_register_2);
+      integrator.evolve_one_time_step(euler_operator, solution, time_step, time);
     }
 
     time += time_step;
 
     if (static_cast<int>(time / output_tick) !=
             static_cast<int>((time - time_step) / output_tick) ||
-        time >= final_time - 1e-12)
+        time >= final_time - 1e-12) {
       output_results(static_cast<unsigned int>(std::round(time / output_tick)));
+        pcout << "t = " << time << std::endl;
+    }
   }
 
   timer.print_wall_time_statistics(MPI_COMM_WORLD);

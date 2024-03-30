@@ -39,7 +39,7 @@ void CartesianEulerPostprocessor<dim>::evaluate_vector_field(
     Assert(computed_quantities.size() == n_evaluation_points,
            ExcInternalError());
     Assert(inputs.solution_values[0].size() == dim + 2, ExcInternalError());
-    Assert(computed_quantities[0].size() == dim + 2, ExcInternalError());
+    Assert(computed_quantities[0].size() == dim + 3, ExcInternalError());
 
     for (unsigned int p = 0; p < n_evaluation_points; ++p) {
         Tensor<1, dim + 2, double> solution;
@@ -55,7 +55,8 @@ void CartesianEulerPostprocessor<dim>::evaluate_vector_field(
             computed_quantities[p](d) = velocity[d];
         }
         computed_quantities[p](dim) = pressure;
-        computed_quantities[p](dim+1) = std::sqrt(gamma * pressure / density);
+        computed_quantities[p](dim+1) = std::log(pressure) - gamma * std::log(density);
+        computed_quantities[p](dim+2) = std::sqrt(gamma * pressure / density);
     }
 }
 
@@ -66,6 +67,7 @@ std::vector<std::string> CartesianEulerPostprocessor<dim>::get_names() const {
         names.emplace_back("velocity");
     }
     names.emplace_back("pressure");
+    names.emplace_back("specific_entropy");
     names.emplace_back("speed_of_sound");
 
     return names;
@@ -87,6 +89,9 @@ CartesianEulerPostprocessor<dim>::get_data_component_interpretation() const {
             DataComponentInterpretation::component_is_part_of_vector);
 
     // pressure
+    interpretation.push_back(DataComponentInterpretation::component_is_scalar);
+
+    // entropy
     interpretation.push_back(DataComponentInterpretation::component_is_scalar);
 
     // speed of sound

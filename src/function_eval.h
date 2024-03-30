@@ -5,14 +5,16 @@
 
 using namespace dealii;
 
-  template <int dim, typename Number>
-VectorizedArray<Number>
+using Number = double;
+
+  template <int dim, typename Number, typename VectorizedNumber>
+VectorizedNumber
 evaluate_function(const Function<dim>                       &function,
-                const Point<dim, VectorizedArray<Number>> &p_vectorized,
+                const Point<dim, VectorizedNumber> &p_vectorized,
                 const unsigned int                         component)
 {
-VectorizedArray<Number> result;
-for (unsigned int v = 0; v < VectorizedArray<Number>::size(); ++v)
+VectorizedNumber result;
+for (unsigned int v = 0; v < VectorizedNumber::size(); ++v)
   {
     Point<dim> p;
     for (unsigned int d = 0; d < dim; ++d)
@@ -23,14 +25,14 @@ return result;
 }
 
 
-template <int dim, typename Number, int n_components = dim + 2>
-Tensor<1, n_components, VectorizedArray<Number>>
+template <int dim, typename Number, typename VectorizedNumber, int n_components = dim + 2>
+Tensor<1, n_components, VectorizedNumber>
 evaluate_function(const Function<dim>                       &function,
-                const Point<dim, VectorizedArray<Number>> &p_vectorized)
+                const Point<dim, VectorizedNumber> &p_vectorized)
 {
 AssertDimension(function.n_components, n_components);
-Tensor<1, n_components, VectorizedArray<Number>> result;
-for (unsigned int v = 0; v < VectorizedArray<Number>::size(); ++v)
+Tensor<1, n_components, VectorizedNumber> result;
+for (unsigned int v = 0; v < VectorizedNumber::size(); ++v)
   {
     Point<dim> p;
     for (unsigned int d = 0; d < dim; ++d)

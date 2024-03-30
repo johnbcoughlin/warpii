@@ -76,3 +76,49 @@ class LowStorageRungeKuttaIntegrator {
     std::vector<double> ci;
 };
 
+template <typename Number, typename Operator>
+class SSPRK2Integrator {
+    using VectorType = LinearAlgebra::distributed::Vector<Number>;
+
+   public:
+    SSPRK2Integrator() {}
+
+    void evolve_one_time_step(
+            Operator& forward_euler_operator, 
+            // Destination
+            VectorType& solution,
+            const double dt,
+            const double t);
+
+    void reinit(VectorType& sol, int sol_register_count);
+
+   private:
+    VectorType f_1;
+    std::vector<VectorType> sol_registers;
+};
+
+template <typename Number, typename Operator>
+void SSPRK2Integrator<Number, Operator>::evolve_one_time_step(
+        Operator& forward_euler_operator,
+        LinearAlgebra::distributed::Vector<Number> &solution,
+        const double dt,
+        const double t) {
+    forward_euler_operator.perform_forward_euler_step(
+            f_1, solution, sol_registers, dt, t);
+    forward_euler_operator.perform_forward_euler_step(
+            solution, f_1, sol_registers, dt, t+dt,
+            0.5, 0.5);
+}
+
+template <typename Number, typename Operator>
+void SSPRK2Integrator<Number, Operator>::reinit(
+        LinearAlgebra::distributed::Vector<Number>& sol,
+        int sol_register_count) {
+    f_1.reinit(sol);
+    for (int i = 0; i < sol_register_count; i++) {
+        LinearAlgebra::distributed::Vector<Number> sol_register;
+        sol_register.reinit(sol);
+        sol_registers.push_back(sol_register);
+    }
+}
+

@@ -232,11 +232,11 @@ void RadialEulerOperator<dim, degree, n_points_1d>::local_apply_boundary_face(
             Tensor<1, dim + 2, VectorizedArray<Number>> w_p;
             const auto boundary_id = data.get_boundary_id(face);
             if (_bc_map.is_inflow(boundary_id)) {
-                w_p = evaluate_function(*_bc_map.get_inflow(boundary_id),
+                w_p = evaluate_function<dim, Number, VectorizedArray<Number>>(*_bc_map.get_inflow(boundary_id),
                                         phi.quadrature_point(q));
             } else if (_bc_map.is_subsonic_outflow(boundary_id)) {
                 w_p = w_m;
-                w_p[dim + 1] = evaluate_function<dim>(
+                w_p[dim + 1] = evaluate_function<dim, Number, VectorizedArray<Number>>(
                     *_bc_map.get_subsonic_outflow_energy(boundary_id),
                     phi.quadrature_point(q), dim + 1);
                 at_outflow = true;
@@ -382,7 +382,7 @@ void RadialEulerOperator<dim, degree, n_points_1d>::project(
         phi.reinit(cell);
         for (const unsigned int q : phi.quadrature_point_indices())
             phi.submit_dof_value(
-                evaluate_function(function, phi.quadrature_point(q)), q);
+                evaluate_function<dim, Number, VectorizedArray<Number>>(function, phi.quadrature_point(q)), q);
         inverse.transform_from_q_points_to_basis(
             dim + 2, phi.begin_dof_values(), phi.begin_dof_values());
         phi.set_dof_values(solution);
