@@ -15,7 +15,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS": "-Wall -Wextra -Wpedantic -Werror",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "yes"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "yes",
+        "DEALII_BUILD_MODE": "Debug"
       }
     },
     {
@@ -27,7 +28,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_CXX_FLAGS": "-Wall -Wextra -Wpedantic -Werror",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "yes"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "yes",
+        "DEALII_BUILD_MODE": "Release"
       }
     }
   ]
