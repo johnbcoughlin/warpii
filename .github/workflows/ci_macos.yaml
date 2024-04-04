@@ -5,7 +5,7 @@ jobs:
     runs-on: macos-latest
     env:
       BUILD_TYPE: Debug
-      WARPIISOFT: "/warpiisoft"
+      WARPIISOFT: "warpiisoft"
     timeout-minutes: 120
     steps:
     - uses: actions/checkout@v3
