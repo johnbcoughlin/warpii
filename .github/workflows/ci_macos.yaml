@@ -2,23 +2,19 @@ name: WarpII Continuous Integration
 on: [ push ]
 jobs:
   build-warpxm-debug:
-    runs-on: [ macos-latest, ubuntu-latest ]
+    runs-on: macos-latest
     env:
       BUILD_TYPE: Debug
     timeout-minutes: 120
     steps:
-
     - uses: actions/checkout@v3
-
     - name: ccache
       uses: hendrikmuhs/ccache-action@v1
       with:
         append-timestamp: false  # no need to save a separate cache entry every build, just use the most recent relevant one
         key: ${{ github.job }}-${{ env.BUILD_TYPE }}-macos
-
     - name: Build
       run: make builds/Debug
-
     - name: Tests
       run: make test WARPII_BUILD_TYPE=${{ env.BUILD_TYPE }}
 
