@@ -20,7 +20,7 @@ jobs:
         path: ${{ env.WARPIISOFT }}
         key: ${{ runner.os }}-${{ env.BUILD_TYPE }}
     - name: Build
-      run: make builds/Debug
+      run: source warpii.env && make builds/Debug
     - name: Tests
-      run: make test WARPII_BUILD_TYPE=${{ env.BUILD_TYPE }}
+      run: source warpii.env && make test WARPII_BUILD_TYPE=${{ env.BUILD_TYPE }}
 

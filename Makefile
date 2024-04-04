@@ -6,7 +6,7 @@ clean:
 
 .PHONY: deps
 deps:
-	cd script && $(MAKE) $(WARPIISOFT)/deps
+	source warpii.env && cd script && $(MAKE) $(WARPIISOFT)/deps
 
 builds/Debug: deps src codes
 	source warpii.env \
