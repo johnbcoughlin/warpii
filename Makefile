@@ -1,14 +1,22 @@
 SHELL := /bin/bash
 
+.PHONY: clean
 clean:
 	rm -rf builds
 
-builds/Debug: src codes
-	cmake --fresh --preset clang-debug \
+.PHONY: deps
+deps:
+	cd script && $(MAKE) $(WARPIISOFT)/deps
+
+builds/Debug: deps src codes
+	source warpii.env \
+		&& cmake --fresh --preset clang-debug \
 		&& cmake --build builds/Debug --parallel
 	
-builds/Release: src codes
-	cmake --fresh --preset clang-release \
+builds/Release: deps src codes
+	source warpii.env \
+		&& cmake --fresh --preset clang-release \
 		&& cmake --build builds/Release --parallel
 
 test: builds/$(WARPII_BUILD_TYPE)
+

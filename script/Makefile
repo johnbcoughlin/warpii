@@ -1,6 +1,8 @@
 SHELL := /bin/bash
 
-all: $(WARPIISOFT)/deps/dealii/dealii-Debug
+$(WARPIISOFT)/deps: $(WARPIISOFT)/deps/dealii
+
+$(WARPIISOFT)/deps/dealii: $(WARPIISOFT)/deps/dealii/dealii-Debug $(WARPIISOFT)/deps/dealii/dealii-Release
 
 clean:
 	rm -rf $(WARPIISOFT)/deps
@@ -18,6 +20,6 @@ $(WARPIISOFT)/deps/dealii/dealii-$(DEALII_VERSION):
 $(WARPIISOFT)/deps/dealii/dealii-Debug: $(WARPIISOFT)/deps/dealii/dealii-$(DEALII_VERSION)
 	./install-dealii.sh --debug
 
-$(WARPIISOFT)/deps/dealii/dealii-Release: warpiisoft-link
+$(WARPIISOFT)/deps/dealii/dealii-Release:
 	./install-dealii.sh --release
 

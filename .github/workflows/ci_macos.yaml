@@ -5,6 +5,7 @@ jobs:
     runs-on: macos-latest
     env:
       BUILD_TYPE: Debug
+      WARPIISOFT: "/warpiisoft"
     timeout-minutes: 120
     steps:
     - uses: actions/checkout@v3
@@ -13,6 +14,10 @@ jobs:
       with:
         append-timestamp: false  # no need to save a separate cache entry every build, just use the most recent relevant one
         key: ${{ github.job }}-${{ env.BUILD_TYPE }}-macos
+    - name: warpiisoft-cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.WARPIISOFT }}
     - name: Build
       run: make builds/Debug
     - name: Tests
