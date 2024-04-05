@@ -4,7 +4,7 @@ jobs:
   build-warpxm-debug:
     runs-on: macos-latest
     env:
-      BUILD_TYPE: Debug
+      WARPII_BUILD_TYPE: Debug
       WARPIISOFT: "warpiisoft"
     timeout-minutes: 120
     steps:
@@ -13,14 +13,14 @@ jobs:
       uses: hendrikmuhs/ccache-action@v1
       with:
         append-timestamp: false  # no need to save a separate cache entry every build, just use the most recent relevant one
-        key: ${{ github.job }}-${{ env.BUILD_TYPE }}-macos
+        key: ${{ github.job }}-${{ env.WARPII_BUILD_TYPE }}-macos
     - name: warpiisoft-cache
       uses: actions/cache@v4
       with:
         path: ${{ env.WARPIISOFT }}
-        key: ${{ runner.os }}-${{ env.BUILD_TYPE }}
+        key: ${{ runner.os }}-${{ env.WARPII_BUILD_TYPE }}
     - name: Build
-      run: source warpii.env && make builds/Debug
+      run: make build
     - name: Tests
-      run: source warpii.env && make test WARPII_BUILD_TYPE=${{ env.BUILD_TYPE }}
+      run: make test
 

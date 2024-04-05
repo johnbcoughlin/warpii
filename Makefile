@@ -8,6 +8,8 @@ clean:
 deps:
 	source warpii.env && cd script && $(MAKE) $(WARPIISOFT)/deps
 
+build: builds/$(WARPII_BUILD_TYPE)
+
 builds/Debug: deps src codes
 	source warpii.env \
 		&& cmake --fresh --preset clang-debug \
@@ -18,5 +20,4 @@ builds/Release: deps src codes
 		&& cmake --fresh --preset clang-release \
 		&& cmake --build builds/Release --parallel
 
-test: builds/$(WARPII_BUILD_TYPE)
-
+test: build
