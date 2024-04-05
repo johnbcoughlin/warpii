@@ -17,7 +17,7 @@ $(WARPIISOFT)/deps/dealii/src/dealii-$(DEALII_VERSION)/source:
 		&& tar -xf dealii-$(DEALII_VERSION).tar \
 		&& rm dealii-$(DEALII_VERSION).tar
 
-$(WARPIISOFT)/deps/dealii/dealii-$(WARPII_BUILD_TYPE)/source: $(WARPIISOFT)/deps/dealii/src/dealii-$(DEALII_VERSION) install-dealii.sh
+$(WARPIISOFT)/deps/dealii/dealii-$(WARPII_BUILD_TYPE): $(WARPIISOFT)/deps/dealii/src/dealii-$(DEALII_VERSION)/source install-dealii.sh
 	./install-dealii.sh
 
 ### Targets for downloading, building and installing OpenMPI
