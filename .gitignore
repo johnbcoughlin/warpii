@@ -4,3 +4,4 @@ builds
 *.vtu
 .idea
 .DS_Store
+warpii.user.env
