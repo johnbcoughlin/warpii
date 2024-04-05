@@ -2,11 +2,11 @@
 
 set -ex
 
-source ../warpii.env
+./check-warpii-env.sh
 
-if [[ $1 == --debug ]]; then
+if [[ $WARPII_BUILD_TYPE == "Debug" ]]; then
     DEALII_BUILD_MODE=Debug
-elif [[ $1 == --release ]]; then
+elif [[ $WARPII_BUILD_TYPE == "Release" ]]; then
     DEALII_BUILD_MODE=Release
 else
     echo "Must pass either --debug or --release flag to this script"
