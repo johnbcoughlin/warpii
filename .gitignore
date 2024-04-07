@@ -5,3 +5,4 @@ builds
 .idea
 .DS_Store
 warpii.user.env
+CMakeUserPresets.json

@@ -37,7 +37,7 @@ using namespace dealii;
 constexpr unsigned int fe_degree = 5;
 constexpr LowStorageRungeKuttaScheme lsrk_scheme = stage_5_order_4;
 const double courant_number = 0.15 / std::pow(fe_degree, 1.5);
-constexpr double gamma = 5.0 / 3.0;
+constexpr double gas_gamma = 5.0 / 3.0;
 constexpr double final_time = 40.0;
 constexpr double output_tick = 0.20;
 
@@ -296,7 +296,7 @@ int main(int argc, char **argv) {
   try {
     deallog.depth_console(0);
 
-    KHProblem kh_problem(gamma, k);
+    KHProblem kh_problem(gas_gamma, k);
     kh_problem.run();
   } catch (std::exception &exc) {
     std::cerr << std::endl

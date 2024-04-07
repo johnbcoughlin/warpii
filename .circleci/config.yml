@@ -1,0 +1,19 @@
+version: 2.1
+
+jobs:
+  hello-job:
+    docker:
+      - image: johnbcoughlin/warpii:ci-ubuntu # the primary container, where your job's commands are run
+    steps:
+      - checkout
+      - run: 
+          name: "Build and run tests"
+          command: pwd && cat CMakePresets.json && make test
+          environment:
+            WARPII_CMAKE_PRESET: ci-ubuntu
+
+
+workflows:
+  my-workflow:
+    jobs:
+      - hello-job
