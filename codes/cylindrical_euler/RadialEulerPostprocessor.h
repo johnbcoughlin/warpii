@@ -59,11 +59,11 @@ void RadialEulerPostprocessor<dim>::evaluate_vector_field(
             }
             energy = solution[dim+1] / r;
         } else {
-            density = std::nan(0);
+            density = std::nan("0");
             for (unsigned int d = 0; d < dim; ++d) {
-                momentum[d] = std::nan(0);
+                momentum[d] = std::nan("0");
             }
-            energy = std::nan(0);
+            energy = std::nan("0");
         }
 
         const Tensor<1, dim> velocity =
@@ -72,7 +72,7 @@ void RadialEulerPostprocessor<dim>::evaluate_vector_field(
         if (std::abs(r) > 1e-15) {
             pressure = radial_euler_pressure<dim, double>(solution, gamma) / r;
         } else {
-            pressure = std::nan(0);
+            pressure = std::nan("0");
         }
 
         computed_quantities[p](0) = density;

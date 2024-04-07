@@ -4,14 +4,7 @@ set -ex
 
 ./check-warpii-env.sh
 
-if [[ $WARPII_BUILD_TYPE == "Debug" ]]; then
-    DEALII_BUILD_MODE=Debug
-elif [[ $WARPII_BUILD_TYPE == "Release" ]]; then
-    DEALII_BUILD_MODE=Release
-else
-    echo "Must pass either --debug or --release flag to this script"
-    exit 1
-fi
+DEALII_BUILD_MODE=RelWithDebInfo
 
 DEALII_SRCDIR=$WARPIISOFT/deps/dealii/src/dealii-${DEALII_VERSION}
 

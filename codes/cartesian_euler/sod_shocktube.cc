@@ -37,7 +37,7 @@ using namespace dealii;
 constexpr unsigned int fe_degree = 4;
 // constexpr LowStorageRungeKuttaScheme lsrk_scheme = stage_5_order_4;
 const double courant_number = 1.0 / 6.0 / 2.0;
-constexpr double gamma = 5.0 / 3.0;
+constexpr double gas_gamma = 5.0 / 3.0;
 constexpr double final_time = 0.5;
 constexpr double output_tick = 0.001;
 
@@ -121,8 +121,8 @@ void SodShocktubeProblem::make_grid_and_dofs() {
     Point<1> left(-0.5);
     Point<1> right(0.5);
 
-    GridGenerator::subdivided_hyper_rectangle(triangulation, {16}, left, right,
-                                              true);
+    std::vector<unsigned int> subdivisions = {16};
+    GridGenerator::subdivided_hyper_rectangle(triangulation, subdivisions, left, right, true);
     triangulation.refine_global(2);
     const auto ic = SodShocktubeInitialCondition(gamma, ratio, 0.0);
 
@@ -270,7 +270,7 @@ int main(int argc, char **argv) {
 
         double ratio = std::atof(argv[1]);
 
-        SodShocktubeProblem sod_problem(gamma, ratio);
+        SodShocktubeProblem sod_problem(gas_gamma, ratio);
         sod_problem.run();
     } catch (std::exception &exc) {
         std::cerr << std::endl

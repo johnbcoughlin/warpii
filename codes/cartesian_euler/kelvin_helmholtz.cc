@@ -37,7 +37,7 @@ namespace CartesianEuler {
 constexpr unsigned int fe_degree = 5;
 //constexpr LowStorageRungeKuttaScheme lsrk_scheme = stage_5_order_4;
 const double courant_number = 0.15 / std::pow(fe_degree, 1.5) / 2;
-constexpr double gamma = 5.0 / 3.0;
+constexpr double gas_gamma = 5.0 / 3.0;
 constexpr double k = 1.2 * numbers::PI;
 constexpr double final_time = 40.0;
 constexpr double output_tick = 0.50;
@@ -135,8 +135,9 @@ void KHProblem::make_grid_and_dofs() {
     Point<2> bottomleft(-0.5, 0.0);
     Point<2> topright(0.5, (2*numbers::PI) / k);
 
-    GridGenerator::subdivided_hyper_rectangle(triangulation,
-            {4, 4}, bottomleft, topright, true);
+    std::vector<unsigned int> subdivisions = {4, 4};
+    GridGenerator::subdivided_hyper_rectangle(triangulation, subdivisions, 
+            bottomleft, topright, true);
     triangulation.refine_global(2);
     const auto ic = KHInitialCondition(k, gamma, 0.0);
 
@@ -293,7 +294,7 @@ int main(int argc, char **argv) {
   try {
     deallog.depth_console(0);
 
-    KHProblem kh_problem(gamma, k);
+    KHProblem kh_problem(gas_gamma, k);
     kh_problem.run();
   } catch (std::exception &exc) {
     std::cerr << std::endl
