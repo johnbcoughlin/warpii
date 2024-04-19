@@ -6,3 +6,4 @@ builds
 .DS_Store
 warpii.user.env
 CMakeUserPresets.json
+compile_commands.json

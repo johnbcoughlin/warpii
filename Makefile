@@ -8,9 +8,11 @@ builds/$(WARPII_CMAKE_PRESET)/configured: CMakePresets.json CMakeLists.txt
 		&& touch builds/$(WARPII_CMAKE_PRESET)/configured
 
 build: src codes builds/$(WARPII_CMAKE_PRESET)/configured
-	source warpii.env && cmake --build --preset $(WARPII_CMAKE_PRESET)
+	source warpii.env && cmake --build --preset $(WARPII_CMAKE_PRESET) --parallel
 
 test: build
+	source warpii.env && cd builds/$(WARPII_CMAKE_PRESET)/test \
+		&& ctest --output-on-failure
 
 .PHONY: install-dealii
 install-dealii:

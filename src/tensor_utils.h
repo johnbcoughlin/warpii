@@ -1,3 +1,4 @@
+#pragma once
 #include <deal.II/base/tensor.h>
 
 using namespace dealii;
