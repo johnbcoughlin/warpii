@@ -1,11 +1,11 @@
 add_executable(cylindrical_khi cylindrical_euler/kelvin_helmholtz.cc)
-target_link_libraries(cylindrical_khi warpii)
+target_link_libraries(cylindrical_khi libwarpii)
 deal_ii_setup_target(cylindrical_khi)
 
 add_executable(cartesian_sod cartesian_euler/sod_shocktube.cc)
-target_link_libraries(cartesian_sod warpii)
+target_link_libraries(cartesian_sod libwarpii)
 deal_ii_setup_target(cartesian_sod)
 
 add_executable(cartesian_khi cartesian_euler/kelvin_helmholtz.cc)
-target_link_libraries(cartesian_khi warpii)
+target_link_libraries(cartesian_khi libwarpii)
 deal_ii_setup_target(cartesian_khi)

@@ -1,0 +1,48 @@
+set app = FiveMoment
+subsection FiveMoment
+    set num_species = 2
+    set fe_degree = 3
+
+    subsection Species_1
+        set name = "ions"
+        set mass = 1.0
+        ...
+
+        subsection BoundaryConditions
+        end
+        subsection InitialCondition
+        end
+    end
+
+    subsection Species_2
+        set name = "electrons"
+
+        subsection BoundaryConditions
+        end
+        subsection InitialCondition
+        end
+    end
+
+    set fields_enabled = true
+    subsection Fields
+        subsection BoundaryConditions
+        end
+        subsection InitialCondition
+        end
+    end
+
+    subsection geometry
+        set dims = 2
+        set nx = 10, 10
+        set left = 0.0, 0.0
+        set right = 1.0, 1.0
+    end
+
+    subsection CircuitModel
+        set enabled = true
+        set inner_electrode_boundary_ids = 1, 2
+        ...
+    end
+
+
+end

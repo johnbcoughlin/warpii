@@ -15,4 +15,10 @@ find_package(MPI REQUIRED)
 deal_ii_initialize_cached_variables()
 
 add_subdirectory(src)
-add_subdirectory(codes)
+
+add_executable(warpii main.cc)
+target_link_libraries(warpii libwarpii)
+deal_ii_setup_target(warpii)
+
+#add_subdirectory(codes)
+add_subdirectory(test)

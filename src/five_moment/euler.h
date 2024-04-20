@@ -1,7 +1,9 @@
+#pragma once
 #include <deal.II/base/tensor.h>
 
-namespace WarpII {
-    using namespace dealii;
+namespace warpii {
+namespace five_moment {
+using namespace dealii;
 
 /**
  * Compute the velocity from the conserved variables
@@ -23,8 +25,8 @@ inline DEAL_II_ALWAYS_INLINE Tensor<1, dim, Number> euler_velocity(
  * Compute Euler pressure from conserved variables
  */
 template <int dim, typename Number>
-inline DEAL_II_ALWAYS_INLINE Number
-euler_pressure(const Tensor<1, dim + 2, Number> &conserved_variables, double gamma) {
+inline DEAL_II_ALWAYS_INLINE Number euler_pressure(
+    const Tensor<1, dim + 2, Number> &conserved_variables, double gamma) {
     const Number rho = conserved_variables[0];
     Number squared_momentum = Number(0.);
     for (unsigned int d = 0; d < dim; d++) {
@@ -62,8 +64,7 @@ template <int dim, typename Number>
 inline DEAL_II_ALWAYS_INLINE Tensor<1, dim + 2, Number> euler_numerical_flux(
     const Tensor<1, dim + 2, Number> &q_in,
     const Tensor<1, dim + 2, Number> &q_out,
-    const Tensor<1, dim, Number> &outward_normal,
-    double gamma) {
+    const Tensor<1, dim, Number> &outward_normal, double gamma) {
     const auto u_in = euler_velocity<dim>(q_in);
     const auto u_out = euler_velocity<dim>(q_out);
 
@@ -82,4 +83,5 @@ inline DEAL_II_ALWAYS_INLINE Tensor<1, dim + 2, Number> euler_numerical_flux(
            0.5 * lambda * (q_in - q_out);
 }
 
-}
+}  // namespace five_moment
+}  // namespace warpii
