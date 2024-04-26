@@ -10,10 +10,12 @@ int main(int argc, char **argv) {
     using namespace dealii;
     using namespace warpii;
 
+    Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
     try {
         deallog.depth_console(0);
 
         Warpii warpii_obj = Warpii::create_from_cli(argc, argv);
+        warpii_obj.load_input_from_file();
         warpii_obj.run();
 
     } catch (std::exception &exc) {

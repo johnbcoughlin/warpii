@@ -28,6 +28,7 @@ std::unique_ptr<AbstractApp> FiveMomentWrapper::create_app(
             prm.parse_input_from_string(input, "", false);
             return FiveMomentApp<1>::create_from_parameters(prm);
         }
+                /*
         case 2: {
             FiveMomentApp<2>::declare_parameters(prm);
             prm.parse_input_from_string(input, "", false);
@@ -38,6 +39,7 @@ std::unique_ptr<AbstractApp> FiveMomentWrapper::create_app(
             prm.parse_input_from_string(input, "", false);
             return FiveMomentApp<3>::create_from_parameters(prm);
         }
+        */
         default: {
             AssertThrow(false, ExcMessage("n_dims must be 1, 2, or 3"));
         }

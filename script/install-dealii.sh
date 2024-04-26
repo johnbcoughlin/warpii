@@ -15,6 +15,7 @@ pushd build-${DEALII_BUILD_MODE}
 
 cmake -DCMAKE_INSTALL_PREFIX=$WARPIISOFT/deps/dealii/dealii-${DEALII_VERSION}-${DEALII_BUILD_MODE} \
     -DDEAL_II_WITH_MPI=ON \
+    -DDEAL_II_WITH_MUPARSER=ON \
     -DDEAL_II_ALLOW_AUTODETECTION=OFF \ # https://www.dealii.org/current/users/cmake_dealii.html#configureautoconf \
     ..
 

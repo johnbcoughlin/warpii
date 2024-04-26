@@ -1,5 +1,6 @@
 #pragma once
 #include <deal.II/base/tensor.h>
+#include "../tensor_utils.h"
 
 namespace warpii {
 namespace five_moment {
