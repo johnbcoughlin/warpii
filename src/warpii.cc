@@ -106,7 +106,7 @@ void Warpii::run() {
         app_wrapper = std::make_unique<five_moment::FiveMomentWrapper>();
     }
     app_wrapper->declare_parameters(prm);
-    auto app = app_wrapper->create_app(prm, input);
+    app = app_wrapper->create_app(prm, input);
     app->run(opts);
 }
 

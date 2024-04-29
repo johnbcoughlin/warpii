@@ -24,11 +24,17 @@ class Warpii {
 
     void run();
 
+    template <typename AppImpl>
+    AppImpl& get_app() {
+        return *(dynamic_cast<AppImpl*>(app.get()));
+    }
+
     WarpiiOpts opts;
     std::string input;
 
    private:
     ParameterHandler prm;
+    std::unique_ptr<AbstractApp> app;
 };
 
 }  // namespace warpii

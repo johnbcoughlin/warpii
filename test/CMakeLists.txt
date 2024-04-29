@@ -8,21 +8,22 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 enable_testing()
-
-add_executable(
-  input_test
-  input_test.cc
-)
-target_link_libraries(
-  input_test
-  GTest::gtest_main
-  libwarpii
-)
-target_include_directories(input_test PRIVATE "${CMAKE_SOURCE_DIR}")
-deal_ii_setup_target(input_test)
-
 include(GoogleTest)
-gtest_discover_tests(input_test)
+
+set(TEST_SOURCES
+    input_test.cc
+    timestepper_test.cc
+    # Add more test files here as needed
+)
+
+foreach(TEST_SOURCE ${TEST_SOURCES})
+    get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
+    add_executable(${TEST_NAME} ${TEST_SOURCE})
+    target_link_libraries(${TEST_NAME} GTest::gtest_main libwarpii)
+    target_include_directories(${TEST_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
+    deal_ii_setup_target(${TEST_NAME})
+    gtest_discover_tests(${TEST_NAME})
+endforeach()
 
 add_test(
     NAME HelpTest
