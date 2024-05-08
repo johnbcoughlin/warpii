@@ -14,6 +14,7 @@
 #include "../timestepper.h"
 #include "dg_discretization.h"
 #include "fluid_flux_dg_operator.h"
+#include "fluid_flux_es_dgsem_operator.h"
 #include "species.h"
 
 using namespace dealii;
@@ -52,8 +53,8 @@ class FiveMomentDGSolver {
     std::vector<std::shared_ptr<Species<dim>>> species;
     LinearAlgebra::distributed::Vector<double> solution;
 
-    SSPRK2Integrator<double, FluidFluxDGOperator<dim>> ssp_integrator;
-    FluidFluxDGOperator<dim> fluid_flux_operator;
+    SSPRK2Integrator<double, FluidFluxESDGSEMOperator<dim>> ssp_integrator;
+    FluidFluxESDGSEMOperator<dim> fluid_flux_operator;
 };
 
 template <int dim>
