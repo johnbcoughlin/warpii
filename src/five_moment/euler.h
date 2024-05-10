@@ -84,5 +84,15 @@ inline DEAL_II_ALWAYS_INLINE Tensor<1, dim + 2, Number> euler_numerical_flux(
            0.5 * lambda * (q_in - q_out);
 }
 
+/**
+ * Central flux
+ */
+template <int dim, typename Number>
+inline DEAL_II_ALWAYS_INLINE Tensor<1, dim + 2, Tensor<1, dim, Number>> euler_central_flux(
+    const Tensor<1, dim + 2, Number> &q_in,
+    const Tensor<1, dim + 2, Number> &q_out,
+    double gamma) {
+    return euler_flux<dim>((q_in + q_out) / 2.0, gamma);
+}
 }  // namespace five_moment
 }  // namespace warpii

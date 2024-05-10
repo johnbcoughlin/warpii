@@ -50,8 +50,17 @@ class FiveMomentDGDiscretization {
         Function<dim>& f,
         unsigned int component);
 
+    unsigned int get_fe_degree() {
+        return fe_degree;
+    }
     DoFHandler<dim>& get_dof_handler() {
         return dof_handler;
+    }
+    Mapping<dim>& get_mapping() {
+        return mapping;
+    }
+    FESystem<dim>& get_fe() {
+        return fe;
     }
 
     void build_data_out_patches(DataOut<dim>& data_out) {

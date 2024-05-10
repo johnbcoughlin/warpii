@@ -1,28 +1,38 @@
 #pragma once
 
-#include <deal.II/base/utilities.h>
-#include <deal.II/base/vectorization.h>
-#include <deal.II/fe/fe_values.h>
-#include <deal.II/matrix_free/fe_evaluation.h>
-#include <deal.II/matrix_free/matrix_free.h>
+#include <deal.II/base/array_view.h>
+#include <deal.II/base/quadrature_lib.h>
+#include <deal.II/fe/fe_update_flags.h>
+#include <deal.II/fe/fe_values_extractors.h>
+#include <deal.II/lac/vector.h>
 
-#include <functional>
-
-#include "../function_eval.h"
-#include "bc_helper.h"
 #include "dg_discretization.h"
 #include "euler.h"
 #include "species.h"
-
-using namespace dealii;
+#include "../dof_utils.h"
 
 namespace warpii {
 namespace five_moment {
 
+using namespace dealii;
+
 template <int dim>
-class FluidFluxDGOperator {
+struct ScratchData {
+    ScratchData(
+        const std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization)
+        : fe_values(discretization->get_mapping(), discretization->get_fe(),
+                    QGaussLobatto<dim>(), UpdateFlags::update_values) {}
+
+    FEValues<dim> fe_values;
+    std::vector<std::vector<double>> u_values;
+};
+
+struct CopyData {};
+
+template <int dim>
+class FluidFluxESDGSEMOperator {
    public:
-    FluidFluxDGOperator(
+    FluidFluxESDGSEMOperator(
         std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization,
         double gas_gamma, std::vector<std::shared_ptr<Species<dim>>> species)
         : discretization(discretization),
@@ -35,7 +45,7 @@ class FluidFluxDGOperator {
         const LinearAlgebra::distributed::Vector<double> &u,
         std::vector<LinearAlgebra::distributed::Vector<double>> &sol_registers,
         const double dt, const double t, const double alpha = 1.0,
-        const double beta = 0.0);
+        const double beta = 0.0) const;
 
    private:
     void local_apply_inverse_mass_matrix(
@@ -62,12 +72,6 @@ class FluidFluxDGOperator {
         const LinearAlgebra::distributed::Vector<double> &src,
         const std::pair<unsigned int, unsigned int> &face_range) const;
 
-    void local_apply_positivity_limiter(
-        const MatrixFree<dim, double> &,
-        LinearAlgebra::distributed::Vector<double> &dst,
-        const LinearAlgebra::distributed::Vector<double> &src,
-        const std::pair<unsigned int, unsigned int> &cell_range) const;
-
     std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization;
     double gas_gamma;
     unsigned int n_species;
@@ -75,11 +79,15 @@ class FluidFluxDGOperator {
 };
 
 template <int dim>
-void FluidFluxDGOperator<dim>::perform_forward_euler_step(
+void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
     LinearAlgebra::distributed::Vector<double> &dst,
     const LinearAlgebra::distributed::Vector<double> &u,
-    std::vector<LinearAlgebra::distributed::Vector<double>> &sol_registers,
-    const double dt, const double t, const double alpha, const double beta) {
+    std::vector<LinearAlgebra::distributed::Vector<double>> &sol_registers, 
+    const double dt,
+    const double t, 
+    const double alpha, const double beta) const {
+    using Iterator = typename DoFHandler<1>::active_cell_iterator;
+
     auto Mdudt_register = sol_registers.at(0);
     auto dudt_register = sol_registers.at(1);
     auto sol_before_limiting = sol_registers.at(2);
@@ -92,9 +100,9 @@ void FluidFluxDGOperator<dim>::perform_forward_euler_step(
         }
 
         discretization->mf.loop(
-            &FluidFluxDGOperator<dim>::local_apply_cell,
-            &FluidFluxDGOperator<dim>::local_apply_face,
-            &FluidFluxDGOperator<dim>::local_apply_boundary_face, this,
+            &FluidFluxESDGSEMOperator<dim>::local_apply_cell,
+            &FluidFluxESDGSEMOperator<dim>::local_apply_face,
+            &FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face, this,
             Mdudt_register, u, true,
             MatrixFree<dim, double>::DataAccessOnFaces::values,
             MatrixFree<dim, double>::DataAccessOnFaces::values);
@@ -102,7 +110,7 @@ void FluidFluxDGOperator<dim>::perform_forward_euler_step(
 
     {
         discretization->mf.cell_loop(
-            &FluidFluxDGOperator<dim>::local_apply_inverse_mass_matrix, this,
+            &FluidFluxESDGSEMOperator<dim>::local_apply_inverse_mass_matrix, this,
             dudt_register, Mdudt_register,
             std::function<void(const unsigned int, const unsigned int)>(),
             [&](const unsigned int start_range, const unsigned int end_range) {
@@ -126,7 +134,7 @@ void FluidFluxDGOperator<dim>::perform_forward_euler_step(
 }
 
 template <int dim>
-void FluidFluxDGOperator<dim>::local_apply_inverse_mass_matrix(
+void FluidFluxESDGSEMOperator<dim>::local_apply_inverse_mass_matrix(
     const MatrixFree<dim, double> &mf,
     LinearAlgebra::distributed::Vector<double> &dst,
     const LinearAlgebra::distributed::Vector<double> &src,
@@ -134,7 +142,8 @@ void FluidFluxDGOperator<dim>::local_apply_inverse_mass_matrix(
     for (unsigned int species_index = 0; species_index < n_species;
          species_index++) {
         unsigned int first_component = species_index * (dim + 2);
-        FEEvaluation<dim, -1, 0, dim + 2, double> phi(mf, 0, 1, first_component);
+        FEEvaluation<dim, -1, 0, dim + 2, double> phi(mf, 0, 1,
+                                                      first_component);
         MatrixFreeOperators::CellwiseInverseMassMatrix<dim, -1, dim + 2, double>
             inverse(phi);
 
@@ -151,34 +160,84 @@ void FluidFluxDGOperator<dim>::local_apply_inverse_mass_matrix(
 }
 
 template <int dim>
-void FluidFluxDGOperator<dim>::local_apply_cell(
+void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
     const MatrixFree<dim, double> &mf,
     LinearAlgebra::distributed::Vector<double> &dst,
     const LinearAlgebra::distributed::Vector<double> &src,
     const std::pair<unsigned int, unsigned int> &cell_range) const {
+
+    unsigned int fe_degree = discretization->get_fe_degree();
+    unsigned int Np = fe_degree + 1;
+    FEValues<dim> fe_values(discretization->get_mapping(), discretization->get_fe(),
+            QGaussLobatto<dim>(Np), UpdateFlags::update_values);
+
+    FullMatrix<double> D(Np, Np);
+    for (unsigned int j = 0; j < Np; j++) {
+        for (unsigned int l = 0; l < Np; l++) {
+            Point<dim> j_pt = fe_values.get_quadrature().point(j);
+            D(j, l) = fe_values.get_fe().shape_grad(l, j_pt)[0];
+        }
+    }
+
     for (unsigned int species_index = 0; species_index < n_species;
          species_index++) {
         unsigned int first_component = species_index * (dim + 2);
-        FEEvaluation<dim, -1, 0, dim + 2, double> phi(mf, 0, 0,
+        FEEvaluation<dim, -1, 0, dim + 2, double> phi(mf, 0, 1,
+                                                      first_component);
+        FEEvaluation<dim, -1, 0, dim + 2, double> phi_reader(mf, 0, 1,
                                                       first_component);
 
         for (unsigned int cell = cell_range.first; cell < cell_range.second;
              ++cell) {
             phi.reinit(cell);
-            phi.gather_evaluate(src, EvaluationFlags::values);
+            phi_reader.reinit(cell);
+            phi_reader.gather_evaluate(src, EvaluationFlags::values);
 
-            for (const unsigned int q : phi.quadrature_point_indices()) {
-                const auto w_q = phi.get_value(q);
-                phi.submit_gradient(euler_flux<dim>(w_q, gas_gamma), q);
+            for (unsigned int d = 0; d < dim; d++) {
+                Tensor<1, dim, VectorizedArray<double>> unit_basis_vec;
+                for (unsigned int di = 0; di < dim; di++) {
+                    unit_basis_vec[di] = VectorizedArray((di == d) ? 1.0 : 0.0);
+                }
+
+                for (const unsigned int qj : phi.quadrature_point_indices()) {
+                    Tensor<2, dim, VectorizedArray<double>> Jinv_j = phi.inverse_jacobian(qj);
+                    VectorizedArray<double> Jdet_j = 1.0 / warpii::determinant(Jinv_j);
+
+                    auto Jai_j = Jdet_j * tensor_column(Jinv_j, d);
+
+                    unsigned int j = quad_point_1d_index(qj, Np, d);
+                    auto uj = phi_reader.get_value(qj);
+                    Tensor<1, dim+2, VectorizedArray<double>> flux_j;
+                    for (unsigned int di = 0; di < dim; di++) {
+                        flux_j[di] = 0.0;
+                    }
+
+                    for (unsigned int l = 0; l < Np; l++) {
+                        unsigned int ql = quadrature_point_neighbor(qj, l, Np, d);
+                        Tensor<2, dim, VectorizedArray<double>> Jinv_l = phi.inverse_jacobian(ql);
+                        VectorizedArray<double> Jdet_l = 1.0 / warpii::determinant(Jinv_l);
+                        auto Jai_l = Jdet_l * tensor_column(Jinv_j, d);
+
+                        const auto Jai_avg = 0.5 * (Jai_j + Jai_l);
+
+                        auto ul = phi_reader.get_value(ql);
+                        double d_jl = D(j, l);
+                        auto two_pt_flux = euler_central_flux<dim>(uj, ul, gas_gamma);
+                        flux_j -= 2.0 * d_jl * two_pt_flux * Jai_avg;
+                    }
+                    phi.submit_value(flux_j / Jdet_j, qj);
+                }
+
+                // Need to be careful to integrate after each flux dimension d,
+                // otherwise the quadrature point values get overwritten.
+                phi.integrate_scatter(EvaluationFlags::values, dst);
             }
-
-            phi.integrate_scatter(EvaluationFlags::gradients, dst);
         }
     }
 }
 
 template <int dim>
-void FluidFluxDGOperator<dim>::local_apply_face(
+void FluidFluxESDGSEMOperator<dim>::local_apply_face(
     const MatrixFree<dim, double> &mf,
     LinearAlgebra::distributed::Vector<double> &dst,
     const LinearAlgebra::distributed::Vector<double> &src,
@@ -186,9 +245,9 @@ void FluidFluxDGOperator<dim>::local_apply_face(
     for (unsigned int species_index = 0; species_index < n_species;
          species_index++) {
         unsigned int first_component = species_index * (dim + 2);
-        FEFaceEvaluation<dim, -1, 0, dim + 2, double> phi_m(mf, true, 0, 0,
+        FEFaceEvaluation<dim, -1, 0, dim + 2, double> phi_m(mf, true, 0, 1,
                                                             first_component);
-        FEFaceEvaluation<dim, -1, 0, dim + 2, double> phi_p(mf, false, 0, 0,
+        FEFaceEvaluation<dim, -1, 0, dim + 2, double> phi_p(mf, false, 0, 1,
                                                             first_component);
 
         for (unsigned int face = face_range.first; face < face_range.second;
@@ -200,21 +259,25 @@ void FluidFluxDGOperator<dim>::local_apply_face(
             phi_m.gather_evaluate(src, EvaluationFlags::values);
 
             for (const unsigned int q : phi_m.quadrature_point_indices()) {
+                const auto n = phi_m.normal_vector(q);
+                const auto flux_m = euler_flux<dim>(phi_m.get_value(q), gas_gamma) * n;
+                const auto flux_p = euler_flux<dim>(phi_p.get_value(q), gas_gamma) * n;
                 const auto numerical_flux = euler_numerical_flux<dim>(
                     phi_m.get_value(q), phi_p.get_value(q),
                     phi_m.normal_vector(q), gas_gamma);
-                phi_m.submit_value(-numerical_flux, q);
-                phi_p.submit_value(numerical_flux, q);
+
+                phi_m.submit_value(flux_m - numerical_flux, q);
+                phi_p.submit_value(numerical_flux - flux_p, q);
             }
 
-            phi_p.integrate_scatter(EvaluationFlags::values, dst);
             phi_m.integrate_scatter(EvaluationFlags::values, dst);
+            phi_p.integrate_scatter(EvaluationFlags::values, dst);
         }
     }
 }
 
 template <int dim>
-void FluidFluxDGOperator<dim>::local_apply_boundary_face(
+void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
     const MatrixFree<dim> &mf, LinearAlgebra::distributed::Vector<double> &dst,
     const LinearAlgebra::distributed::Vector<double> &src,
     const std::pair<unsigned int, unsigned int> &face_range) const {
@@ -273,7 +336,8 @@ void FluidFluxDGOperator<dim>::local_apply_boundary_face(
                                    "for this part of the domain boundary?"));
                 }
 
-                auto flux =
+                auto analytic_flux = euler_flux<dim>(w_m, gas_gamma) * normal;
+                auto numerical_flux =
                     euler_numerical_flux<dim>(w_m, w_p, normal, gas_gamma);
 
                 if (at_outflow) {
@@ -281,157 +345,19 @@ void FluidFluxDGOperator<dim>::local_apply_boundary_face(
                          v < VectorizedArray<double>::size(); ++v) {
                         if (rho_u_dot_n[v] < -1e-12) {
                             for (unsigned int d = 0; d < 1; ++d) {
-                                flux[d + 1][v] = 0.;
+                                numerical_flux[d + 1][v] = 0.;
                             }
                         }
                     }
                 }
 
-                phi.submit_value(-flux, q);
+                phi.submit_value(analytic_flux - numerical_flux, q);
             }
             phi.integrate_scatter(EvaluationFlags::values, dst);
         }
     }
 }
 
-template <int dim>
-void FluidFluxDGOperator<dim>::local_apply_positivity_limiter(
-    const MatrixFree<dim, double> &mf,
-    LinearAlgebra::distributed::Vector<double> &dst,
-    const LinearAlgebra::distributed::Vector<double> &src,
-    const std::pair<unsigned int, unsigned int> &cell_range) const {
-    using VA = VectorizedArray<double>;
-
-    // Used only for the area calculation
-    FEEvaluation<dim, -1, 0, 1, double> phi_scalar(mf, 0, 1);
-    // This should be constructed from the quadrature rule used for the
-    // positivity-preserving step.
-    // TODO: programmatically determine the number of quadrature points
-    FEEvaluation<dim, -1, 0, dim + 2, double> phi(mf, 0, 1);
-    MatrixFreeOperators::CellwiseInverseMassMatrix<dim, -1, dim + 2, double>
-        inverse(phi);
-
-    for (unsigned int cell = cell_range.first; cell < cell_range.second;
-         ++cell) {
-        phi_scalar.reinit(cell);
-        phi.reinit(cell);
-
-        phi.gather_evaluate(src, EvaluationFlags::values);
-        VA rho_min = VA(std::numeric_limits<double>::infinity());
-
-        for (const unsigned int q : phi_scalar.quadrature_point_indices()) {
-            phi_scalar.submit_value(VA(1.0), q);
-        }
-        auto area = phi_scalar.integrate_value();
-        for (const unsigned int q : phi.quadrature_point_indices()) {
-            auto v = phi.get_value(q);
-            rho_min = std::min(v[0], rho_min);
-            phi.submit_value(v, q);
-        }
-        auto cell_avg = phi.integrate_value() / area;
-
-        auto rho_bar = cell_avg[0];
-        auto p_bar = euler_pressure<dim>(cell_avg, gas_gamma);
-
-        for (unsigned int v = 0; v < VA::size(); ++v) {
-            if (rho_bar[v] <= 0.0) {
-                AssertThrow(false,
-                            ExcMessage("Cell average density was negative"));
-            }
-            if (p_bar[v] <= 0.0) {
-                AssertThrow(false,
-                            ExcMessage("Cell average pressure was negative"));
-            }
-        }
-
-        /*
-         * Theta_rho calculation
-         */
-        auto num_rho =
-            std::max(rho_bar - (1e-12 * std::max(rho_bar, VA(1.0))), VA(0.0));
-        auto denom_rho = rho_bar - rho_min;
-        for (unsigned int v = 0; v < VA::size(); ++v) {
-            denom_rho[v] = denom_rho[v] <= 0.0 ? 1.0 : denom_rho[v];
-        }
-        auto theta_rho = std::min(VA(1.0), num_rho / denom_rho);
-
-        /*
-         * Theta E calculation
-         *
-         * First we calculate the min energy after the theta_rho scaling
-         */
-        phi.gather_evaluate(src, EvaluationFlags::values);
-        VA p_min = VA(std::numeric_limits<double>::infinity());
-        for (const unsigned int q : phi.quadrature_point_indices()) {
-            auto v = phi.get_value(q);
-            v[0] = theta_rho * (v[0] - rho_bar) + rho_bar;
-            p_min = std::min(euler_pressure<dim>(v, gas_gamma), p_min);
-        }
-        auto num_E = p_bar - (1e-12 * std::max(p_bar, VA(1.0)));
-        auto denom_E = p_bar - p_min;
-        for (unsigned int v = 0; v < VA::size(); ++v) {
-            denom_E[v] = denom_E[v] <= 0.0 ? 1.0 : denom_E[v];
-        }
-        auto theta_E = std::min(VA(1.0), num_E / denom_E);
-
-        for (unsigned int v = 0; v < VA::size(); ++v) {
-            auto theta_rho_v = theta_rho[v];
-            auto theta_E_v = theta_E[v];
-            if (theta_rho_v != 1.0 || theta_E_v != 1.0) {
-                // std::cout << "theta_rho: " << theta_rho_v << "; theta_E: " <<
-                // theta_E_v << std::endl; std::cout << "theta_rho: " <<
-                // theta_rho_v <<
-                // "; denom_rho: " << denom_rho[v] << std::endl; std::cout <<
-                // "min_rho: " << rho_min[v] << "; rho_bar: " << cell_avg[0][v]
-                // << std::endl;
-            }
-        }
-
-        // Finally, scale the quadrature point values by theta_rho and theta_E.
-        phi.gather_evaluate(src, EvaluationFlags::values);
-        for (const unsigned int q : phi.quadrature_point_indices()) {
-            auto v = phi.get_value(q);
-            // std::cout << "v: " << v << std::endl;
-            auto rho = theta_rho * (v[0] - rho_bar) + rho_bar;
-            rho = theta_E * (rho - rho_bar) + rho_bar;
-            v[0] = rho;
-            for (unsigned int c = 1; c < dim + 2; c++) {
-                v[c] = theta_E * (v[c] - cell_avg[c]) + cell_avg[c];
-            }
-            auto pressure = euler_pressure<dim>(v, gas_gamma);
-            for (unsigned int vec_i = 0; vec_i < VA::size(); ++vec_i) {
-                // AssertThrow(v[dim+2][vec_i] > 1e-12, ExcMessage("Submitting
-                // negative density to quad point"));
-                if (pressure[vec_i] <= 1e-12) {
-                    std::cout << "problem with: " << vec_i << std::endl;
-                    std::cout << "cell avg: " << cell_avg << std::endl;
-                    std::cout << "area: " << area << std::endl;
-                    std::cout << "p bar: " << p_bar << std::endl;
-                    std::cout << "p min: " << p_min << std::endl;
-                    std::cout << "theta rho: " << theta_rho << std::endl;
-                    std::cout << "theta rho: " << num_rho << std::endl;
-                    std::cout << "theta rho: " << denom_rho << std::endl;
-                    std::cout << "rho min: " << rho_min << std::endl;
-                    std::cout << "theta E: " << theta_E << std::endl;
-                    std::cout << "Submitting value: " << v << std::endl;
-                }
-                AssertThrow(
-                    rho[vec_i] > 1e-12,
-                    ExcMessage("Submitting negative density to quad point"));
-                AssertThrow(
-                    pressure[vec_i] > 1e-12,
-                    ExcMessage("Submitting negative pressure to quad point"));
-            }
-            // std::cout << "v_submitted: " << v << std::endl;
-            //  This overwrites the value previously submitted.
-            //  See fe_evaluation.h:4995
-            phi.submit_value(v, q);
-        }
-        phi.integrate(EvaluationFlags::values);
-        inverse.apply(phi.begin_dof_values(), phi.begin_dof_values());
-        phi.set_dof_values(dst);
-    }
-}
 
 }  // namespace five_moment
 }  // namespace warpii
