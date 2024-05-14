@@ -8,7 +8,7 @@ set fe_degree = 2
 subsection geometry
     set left = 0.0
     set right = 1.0
-    set nx = 10
+    set nx = 20
 end
 
 subsection Species_1

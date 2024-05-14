@@ -2,14 +2,16 @@
 
 #include <deal.II/base/array_view.h>
 #include <deal.II/base/quadrature_lib.h>
+#include <deal.II/base/utilities.h>
 #include <deal.II/fe/fe_update_flags.h>
 #include <deal.II/fe/fe_values_extractors.h>
 #include <deal.II/lac/vector.h>
+#include <deal.II/matrix_free/matrix_free.h>
 
+#include "../dof_utils.h"
 #include "dg_discretization.h"
 #include "euler.h"
 #include "species.h"
-#include "../dof_utils.h"
 
 namespace warpii {
 namespace five_moment {
@@ -47,9 +49,13 @@ class FluidFluxESDGSEMOperator {
         const double dt, const double t, const double alpha = 1.0,
         const double beta = 0.0) const;
 
+    double recommend_dt(
+        const MatrixFree<dim, double> &mf,
+            const LinearAlgebra::distributed::Vector<double> &sol);
+
    private:
     void local_apply_inverse_mass_matrix(
-        const MatrixFree<dim, double> &data,
+        const MatrixFree<dim, double> &mf,
         LinearAlgebra::distributed::Vector<double> &dst,
         const LinearAlgebra::distributed::Vector<double> &src,
         const std::pair<unsigned int, unsigned int> &cell_range) const;
@@ -67,10 +73,14 @@ class FluidFluxESDGSEMOperator {
         const std::pair<unsigned int, unsigned int> &face_range) const;
 
     void local_apply_boundary_face(
-        const MatrixFree<dim, double> &,
+        const MatrixFree<dim, double> &mf,
         LinearAlgebra::distributed::Vector<double> &dst,
         const LinearAlgebra::distributed::Vector<double> &src,
         const std::pair<unsigned int, unsigned int> &face_range) const;
+
+    double compute_cell_transport_speed(
+        const MatrixFree<dim, double> &mf,
+        const LinearAlgebra::distributed::Vector<double> &sol) const;
 
     std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization;
     double gas_gamma;
@@ -82,10 +92,9 @@ template <int dim>
 void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
     LinearAlgebra::distributed::Vector<double> &dst,
     const LinearAlgebra::distributed::Vector<double> &u,
-    std::vector<LinearAlgebra::distributed::Vector<double>> &sol_registers, 
-    const double dt,
-    const double t, 
-    const double alpha, const double beta) const {
+    std::vector<LinearAlgebra::distributed::Vector<double>> &sol_registers,
+    const double dt, const double t, const double alpha,
+    const double beta) const {
     using Iterator = typename DoFHandler<1>::active_cell_iterator;
 
     auto Mdudt_register = sol_registers.at(0);
@@ -110,8 +119,8 @@ void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
 
     {
         discretization->mf.cell_loop(
-            &FluidFluxESDGSEMOperator<dim>::local_apply_inverse_mass_matrix, this,
-            dudt_register, Mdudt_register,
+            &FluidFluxESDGSEMOperator<dim>::local_apply_inverse_mass_matrix,
+            this, dudt_register, Mdudt_register,
             std::function<void(const unsigned int, const unsigned int)>(),
             [&](const unsigned int start_range, const unsigned int end_range) {
                 /* DEAL_II_OPENMP_SIMD_PRAGMA */
@@ -165,11 +174,11 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
     LinearAlgebra::distributed::Vector<double> &dst,
     const LinearAlgebra::distributed::Vector<double> &src,
     const std::pair<unsigned int, unsigned int> &cell_range) const {
-
     unsigned int fe_degree = discretization->get_fe_degree();
     unsigned int Np = fe_degree + 1;
-    FEValues<dim> fe_values(discretization->get_mapping(), discretization->get_fe(),
-            QGaussLobatto<dim>(Np), UpdateFlags::update_values);
+    FEValues<dim> fe_values(discretization->get_mapping(),
+                            discretization->get_fe(), QGaussLobatto<dim>(Np),
+                            UpdateFlags::update_values);
 
     FullMatrix<double> D(Np, Np);
     for (unsigned int j = 0; j < Np; j++) {
@@ -185,7 +194,7 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
         FEEvaluation<dim, -1, 0, dim + 2, double> phi(mf, 0, 1,
                                                       first_component);
         FEEvaluation<dim, -1, 0, dim + 2, double> phi_reader(mf, 0, 1,
-                                                      first_component);
+                                                             first_component);
 
         for (unsigned int cell = cell_range.first; cell < cell_range.second;
              ++cell) {
@@ -200,29 +209,35 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
                 }
 
                 for (const unsigned int qj : phi.quadrature_point_indices()) {
-                    Tensor<2, dim, VectorizedArray<double>> Jinv_j = phi.inverse_jacobian(qj);
-                    VectorizedArray<double> Jdet_j = 1.0 / warpii::determinant(Jinv_j);
+                    Tensor<2, dim, VectorizedArray<double>> Jinv_j =
+                        phi.inverse_jacobian(qj);
+                    VectorizedArray<double> Jdet_j =
+                        1.0 / warpii::determinant(Jinv_j);
 
                     auto Jai_j = Jdet_j * tensor_column(Jinv_j, d);
 
                     unsigned int j = quad_point_1d_index(qj, Np, d);
                     auto uj = phi_reader.get_value(qj);
-                    Tensor<1, dim+2, VectorizedArray<double>> flux_j;
+                    Tensor<1, dim + 2, VectorizedArray<double>> flux_j;
                     for (unsigned int di = 0; di < dim; di++) {
                         flux_j[di] = 0.0;
                     }
 
                     for (unsigned int l = 0; l < Np; l++) {
-                        unsigned int ql = quadrature_point_neighbor(qj, l, Np, d);
-                        Tensor<2, dim, VectorizedArray<double>> Jinv_l = phi.inverse_jacobian(ql);
-                        VectorizedArray<double> Jdet_l = 1.0 / warpii::determinant(Jinv_l);
+                        unsigned int ql =
+                            quadrature_point_neighbor(qj, l, Np, d);
+                        Tensor<2, dim, VectorizedArray<double>> Jinv_l =
+                            phi.inverse_jacobian(ql);
+                        VectorizedArray<double> Jdet_l =
+                            1.0 / warpii::determinant(Jinv_l);
                         auto Jai_l = Jdet_l * tensor_column(Jinv_j, d);
 
                         const auto Jai_avg = 0.5 * (Jai_j + Jai_l);
 
                         auto ul = phi_reader.get_value(ql);
                         double d_jl = D(j, l);
-                        auto two_pt_flux = euler_central_flux<dim>(uj, ul, gas_gamma);
+                        auto two_pt_flux =
+                            euler_CH_EC_flux<dim>(uj, ul, gas_gamma);
                         flux_j -= 2.0 * d_jl * two_pt_flux * Jai_avg;
                     }
                     phi.submit_value(flux_j / Jdet_j, qj);
@@ -260,11 +275,13 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_face(
 
             for (const unsigned int q : phi_m.quadrature_point_indices()) {
                 const auto n = phi_m.normal_vector(q);
-                const auto flux_m = euler_flux<dim>(phi_m.get_value(q), gas_gamma) * n;
-                const auto flux_p = euler_flux<dim>(phi_p.get_value(q), gas_gamma) * n;
-                const auto numerical_flux = euler_numerical_flux<dim>(
-                    phi_m.get_value(q), phi_p.get_value(q),
-                    phi_m.normal_vector(q), gas_gamma);
+                const auto flux_m =
+                    euler_flux<dim>(phi_m.get_value(q), gas_gamma) * n;
+                const auto flux_p =
+                    euler_flux<dim>(phi_p.get_value(q), gas_gamma) * n;
+                const auto numerical_flux = euler_CH_entropy_dissipating_flux<dim>(
+                    phi_p.get_value(q), phi_m.get_value(q),
+                    gas_gamma) * phi_m.get_normal_vector(q);
 
                 phi_m.submit_value(flux_m - numerical_flux, q);
                 phi_p.submit_value(numerical_flux - flux_p, q);
@@ -358,6 +375,80 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
     }
 }
 
+template <int dim>
+double FluidFluxESDGSEMOperator<dim>::recommend_dt(
+        const MatrixFree<dim, double> &mf,
+    const LinearAlgebra::distributed::Vector<double> &sol) {
+    double max_transport_speed = compute_cell_transport_speed(mf, sol);
+    unsigned int fe_degree = discretization->get_fe_degree();
+    std::cout << (max_transport_speed * (fe_degree+1) * (fe_degree+1)) << std::endl;
+    return 1.0 / (max_transport_speed * (fe_degree + 1) * (fe_degree + 1));
+}
 
+template <int dim>
+double FluidFluxESDGSEMOperator<dim>::compute_cell_transport_speed(
+    const MatrixFree<dim, double> &mf,
+    const LinearAlgebra::distributed::Vector<Number> &solution) const {
+    using VA = VectorizedArray<Number>;
+
+    Number max_transport = 0;
+
+    for (unsigned int species_index = 0; species_index < n_species;
+         species_index++) {
+        unsigned int first_component = species_index * (dim + 2);
+
+        FEEvaluation<dim, -1, 0, dim + 2, Number> phi(mf, 0, 1,
+                                                      first_component);
+
+        for (unsigned int cell = 0; cell < mf.n_cell_batches(); ++cell) {
+            phi.reinit(cell);
+            phi.gather_evaluate(solution, EvaluationFlags::values);
+            VA local_max = 0.;
+            for (const unsigned int q : phi.quadrature_point_indices()) {
+                const auto solution = phi.get_value(q);
+                const auto velocity = euler_velocity<dim>(solution);
+                const auto pressure = euler_pressure<dim>(solution, gas_gamma);
+
+                const auto inverse_jacobian = phi.inverse_jacobian(q);
+                const auto convective_speed = inverse_jacobian * velocity;
+                VA convective_limit = 0.;
+                for (unsigned int d = 0; d < dim; ++d)
+                    convective_limit = std::max(convective_limit,
+                                                std::abs(convective_speed[d]));
+
+                const auto speed_of_sound =
+                    std::sqrt(gas_gamma * pressure * (1. / solution[0]));
+
+                Tensor<1, dim, VA> eigenvector;
+                for (unsigned int d = 0; d < dim; ++d) eigenvector[d] = 1.;
+                for (unsigned int i = 0; i < 5; ++i) {
+                    eigenvector = transpose(inverse_jacobian) *
+                                  (inverse_jacobian * eigenvector);
+                    VA eigenvector_norm = 0.;
+                    for (unsigned int d = 0; d < dim; ++d)
+                        eigenvector_norm = std::max(eigenvector_norm,
+                                                    std::abs(eigenvector[d]));
+                    eigenvector /= eigenvector_norm;
+                }
+                const auto jac_times_ev = inverse_jacobian * eigenvector;
+                const auto max_eigenvalue =
+                    std::sqrt((jac_times_ev * jac_times_ev) /
+                              (eigenvector * eigenvector));
+                local_max =
+                    std::max(local_max, max_eigenvalue * speed_of_sound +
+                                            convective_limit);
+            }
+
+            for (unsigned int v = 0;
+                 v < mf.n_active_entries_per_cell_batch(cell); ++v) {
+                for (unsigned int d = 0; d < 3; ++d)
+                    max_transport = std::max(max_transport, local_max[v]);
+            }
+        }
+    }
+    max_transport = Utilities::MPI::max(max_transport, MPI_COMM_WORLD);
+
+    return max_transport;
+}
 }  // namespace five_moment
 }  // namespace warpii

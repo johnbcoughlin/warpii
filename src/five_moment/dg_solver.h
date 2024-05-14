@@ -7,6 +7,7 @@
 #include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/matrix_free/matrix_free.h>
 #include <deal.II/matrix_free/operators.h>
+
 #include <functional>
 
 #include "../grid.h"
@@ -76,8 +77,12 @@ void FiveMomentDGSolver<dim>::solve(TimestepCallback writeout_callback) {
                                             t);
         return true;
     };
-    auto recommend_dt = [&]() -> double { return 0.001; };
-    std::vector<TimestepCallback> callbacks = { writeout_callback };
+    auto recommend_dt = [&]() -> double { 
+        return fluid_flux_operator.recommend_dt(
+                discretization->get_matrix_free(),
+                solution);
+    };
+    std::vector<TimestepCallback> callbacks = {writeout_callback};
     advance(step, t_end, recommend_dt, callbacks);
 }
 
