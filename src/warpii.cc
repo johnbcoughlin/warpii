@@ -8,6 +8,7 @@
 #include "five_moment/five_moment.h"
 #include "opts.h"
 #include "wrapper.h"
+#include "fpe.h"
 
 namespace warpii {
 using namespace dealii;
@@ -43,6 +44,8 @@ WarpiiOpts parse_opts(int argc, char **argv) {
         if (arg == "--help" || arg == "-h") {
             opts.help = true;
             break;
+        } else if (arg == "--enable-fpe") {
+            opts.fpe = true;
         } else {
             opts.input = arg;
             set_input = true;
@@ -70,9 +73,16 @@ void Warpii::print_help(bool to_err) {
 WarpII: A collection of plasma codes.
 
 Usage:
-  warpii <input_file>
+  warpii [options] <input_file>
   warpii --help | -h
 
+Options:
+  --enable-fpe: Defaults to false.
+                If this flag is enabled, floating point exceptions will be enabled.
+                This means that any NaNs produced during the simulation will result
+                in a full stop of the simulation.
+                When disabled, NaNs are silently propagated until, possibly, caught
+                down the line by some dealii function.
 )";
 }
 
@@ -98,6 +108,10 @@ void Warpii::run() {
         exit(0);
     }
 
+    if (opts.fpe) {
+        enable_floating_point_exceptions();
+    }
+
     prm.declare_entry("Application", "FiveMoment", Patterns::Selection("FiveMoment"));
     prm.parse_input_from_string(input, "", true);
 
@@ -109,5 +123,6 @@ void Warpii::run() {
     app = app_wrapper->create_app(prm, input);
     app->run(opts);
 }
+
 
 }  // namespace warpii
