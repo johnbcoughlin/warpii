@@ -2,6 +2,7 @@
 #include <deal.II/base/config.h>
 #include <deal.II/base/table_indices.h>
 #include <deal.II/base/tensor.h>
+#include <limits>
 
 using namespace dealii;
 
@@ -33,6 +34,36 @@ inline DEAL_II_ALWAYS_INLINE Tensor<1, dim, Number> tensor_column(
     Tensor<1, dim, Number> result;
     for (unsigned int d = 0; d < dim; ++d)
         result[d] = matrix[TableIndices<2>(d, col)];
+    return result;
+}
+
+template <int n_components, typename Number>
+inline DEAL_II_ALWAYS_INLINE Tensor<1, n_components, Number> 
+componentwise_product(
+        const Tensor<1, n_components, Number> &a,
+        const Tensor<1, n_components, Number> &b) {
+    Tensor<1, n_components, Number> result;
+    for (unsigned int i = 0; i < n_components; i++) {
+        result[i] = a[i] * b[i];
+    }
+    return result;
+}
+
+template <int n_components, typename Number>
+inline DEAL_II_ALWAYS_INLINE Number sum(const Tensor<1, n_components, Number> &a) {
+    Number result(0.0);
+    for (unsigned int i = 0; i < n_components; i++) {
+        result += a[i];
+    }
+    return result;
+}
+
+template <int n_components, typename Number>
+inline DEAL_II_ALWAYS_INLINE Number max_abs(const Tensor<1, n_components, Number> &a) {
+    Number result(0.0);
+    for (unsigned int i = 0; i < n_components; i++) {
+        result = std::max(std::abs(a[i]), result);
+    }
     return result;
 }
 

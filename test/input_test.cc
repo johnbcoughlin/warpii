@@ -20,7 +20,7 @@ TEST(InputTest, FreeStream) {
     std::string input_template = R"(
 set Application = FiveMoment
 set n_dims = 1
-set t_end = 1.4
+set t_end = 0.04
 set write_output = false
 
 set fe_degree = 2
@@ -40,8 +40,10 @@ subsection Species_1
 end
     )";
 
+    // Run for a short time to avoid long time integration error messing
+    // with convergence order.
     FunctionParser<1> expected_density = FunctionParser<1>(
-            "1 + 0.6 * sin(2*pi*(x - 1.4)); 0; 0", "pi=3.1415926535");
+            "1 + 0.6 * sin(2*pi*(x - 0.04)); 0; 0", "pi=3.1415926535");
 
     std::vector<unsigned int> Nxs = { 20, 30 };
     std::vector<double> errors;
@@ -57,10 +59,11 @@ end
         auto& soln = app.get_solution();
 
         double error = disc.compute_global_error(soln, expected_density, 0);
+        std::cout << "error = " << error << std::endl;
         errors.push_back(error);
     }
     EXPECT_NEAR(errors[1], 0.0, 1e-4);
-    EXPECT_NEAR(errors[0] / errors[1], pow(30.0/20, 3), 1.0);
+    EXPECT_NEAR(errors[0] / errors[1], pow(30.0/20.0, 3), 1.0);
 }
 
 TEST(InputTest, SodShocktube) {

@@ -62,6 +62,9 @@ class FiveMomentDGDiscretization {
     FESystem<dim>& get_fe() {
         return fe;
     }
+    MatrixFree<dim>& get_matrix_free() {
+        return mf;
+    }
 
     void build_data_out_patches(DataOut<dim>& data_out) {
         data_out.build_patches(mapping, fe.degree, DataOut<dim>::curved_inner_cells);

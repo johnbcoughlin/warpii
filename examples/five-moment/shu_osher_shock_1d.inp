@@ -1,0 +1,37 @@
+set Application = FiveMoment
+set n_dims = 1
+set t_end = 1.80
+set fields_enabled = false
+
+set fe_degree = 4
+
+set n_species = 1
+set n_boundaries = 2
+
+subsection geometry
+    set left = -5.0
+    set right = 5.0
+    set nx = 150
+    set periodic_dimensions =
+end
+
+subsection Species_1
+    subsection InitialCondition
+        set Function constants = gamma=1.66667,rhoL=3.857,uL=2.629,pL=10.333
+        set Function expression = if(x < -4.0, rhoL, 1 + 0.2*sin(5*x)); \
+                                  if(x < -4.0, rhoL*uL, 0.0); \
+                                  if(x < -4.0, 0.5 * (rhoL*uL*uL) + pL / (gamma - 1), \
+                                               1.0 / (gamma - 1))
+    end
+
+    subsection BoundaryConditions
+        set 0 = Inflow
+        subsection 0_Inflow
+            set Function constants = gamma=1.66667,rhoL=3.857,uL=2.629,pL=10.333
+            set Function expression = rhoL; \
+                                      rhoL*uL; \
+                                      0.5 * (rhoL*uL*uL) + pL / (gamma - 1)
+        end
+        set 1 = Outflow
+    end
+end
