@@ -30,6 +30,10 @@ add_test(
     COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/run-help.sh" "${CMAKE_BINARY_DIR}/warpii"
 )
 add_test(
+    NAME FPETest
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/fpe-enabled-test.sh" "${CMAKE_BINARY_DIR}/warpii"
+)
+add_test(
     NAME Pragmas
     COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/scripts/headers-start-with-pragma-once.sh"
 )

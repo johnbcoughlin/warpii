@@ -16,7 +16,12 @@ struct WarpiiOpts {
      */
     bool help;
 
-    WarpiiOpts() : input(""), help(false) {}
+    /**
+     * Whether floating point exceptions (FPEs) are enabled.
+     */
+    bool fpe;
+
+    WarpiiOpts() : input(""), help(false), fpe(false) {}
 };
 
 WarpiiOpts parse_opts(int argc, char **argv);

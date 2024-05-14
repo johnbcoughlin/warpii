@@ -5,6 +5,7 @@ add_library(libwarpii
     grid.cc
     dof_utils.cc
     five_moment/five_moment.cc
+    fpe.cc
     )
 deal_ii_setup_target(libwarpii)
 
