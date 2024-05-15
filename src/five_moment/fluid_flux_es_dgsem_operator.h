@@ -5,8 +5,10 @@
 #include <deal.II/base/utilities.h>
 #include <deal.II/fe/fe_update_flags.h>
 #include <deal.II/fe/fe_values_extractors.h>
+#include <deal.II/hp/q_collection.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/matrix_free/matrix_free.h>
+#include <deal.II/fe/fe_series.h>
 
 #include "../dof_utils.h"
 #include "dg_discretization.h"
@@ -81,6 +83,17 @@ class FluidFluxESDGSEMOperator {
     double compute_cell_transport_speed(
         const MatrixFree<dim, double> &mf,
         const LinearAlgebra::distributed::Vector<double> &sol) const;
+
+    /**
+     * Compute the troubled cell indicator of Persson and Peraire,
+     * "Sub-Cell Shock Capturing for Discontinuous Galerkin Methods"
+     *
+     * @param phi: Should have already been reinited for the current cell
+     */
+    std::array<double, dim> shock_indicators(
+        const FEEvaluation<dim, -1, 0, dim+2, double>& phi,
+        const FESeries::Legendre<dim> &legendre
+            ) const;
 
     std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization;
     double gas_gamma;
@@ -179,6 +192,15 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
     FEValues<dim> fe_values(discretization->get_mapping(),
                             discretization->get_fe(), QGaussLobatto<dim>(Np),
                             UpdateFlags::update_values);
+
+    std::vector<unsigned int> n_coefs_per_dim = {};
+    for (unsigned int d = 0; d < dim; d++) {
+        n_coefs_per_dim.push_back(Np);
+    }
+    FESeries::Legendre<dim> legendre(n_coefs_per_dim,
+            hp::FECollection<dim>(fe_values.get_fe()),
+            hp::QCollection<dim>(fe_values.get_quadrature()), 
+            0);
 
     FullMatrix<double> D(Np, Np);
     for (unsigned int j = 0; j < Np; j++) {
@@ -450,5 +472,30 @@ double FluidFluxESDGSEMOperator<dim>::compute_cell_transport_speed(
 
     return max_transport;
 }
+
+template <int dim>
+std::array<double, dim> FluidFluxESDGSEMOperator<dim>::shock_indicators(
+        const FEEvaluation<dim, -1, 0, dim+2, double> &phi,
+        const FESeries::Legendre<dim> &legendre) {
+    Vector<double> p_times_rho;
+    p_times_rho.reinit(phi.dofs_per_component);
+
+    for (unsigned int dof = 0; dof < phi.dofs_per_component; dof++) {
+        const auto q_dof = phi.get_dof_value(dof);
+        const auto rho = q_dof[0];
+        const auto p = euler_pressure<dim>(q_dof);
+        p_times_rho(dof) = p * rho;
+    }
+
+    Table<dim, double> legendre_coefs;
+    legendre.calculate(p_times_rho, 0, legendre_coefs); 
+
+    const auto group_leading_coefs
+
+    for (unsigned int d = 0; d < dim; d++) {
+
+    }
+}
+
 }  // namespace five_moment
 }  // namespace warpii
