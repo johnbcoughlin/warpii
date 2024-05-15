@@ -1,0 +1,7 @@
+<doxygenlayout version="1.0">
+<navindex>
+    <tab type="mainpage" visible="yes" title="About"/>
+    <tab type="user" url="@ref install" title="Installation instructions"/>
+    <tab type="user" url="@ref first_simulation" title="Running a simple simulation"/>
+</navindex>
+</doxygenlayout>

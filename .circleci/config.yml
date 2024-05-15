@@ -7,8 +7,11 @@ jobs:
     steps:
       - checkout
       - run: 
+          name: "Install doxygen"
+          command: apt-get install -y doxygen
+      - run: 
           name: "Build and run tests"
-          command: pwd && cat CMakePresets.json && make test
+          command: make test
           environment:
             WARPII_CMAKE_PRESET: ci-ubuntu
 

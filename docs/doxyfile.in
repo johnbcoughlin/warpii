@@ -1,0 +1,17 @@
+PROJECT_NAME = WarpII
+PROJECT_NUMBER = v0.1
+
+INPUT = README.md docs/ src/
+
+FILE_PATTERNS = *.h *.md
+
+USE_MATHJAX            = YES
+
+CLASS_DIAGRAMS = NO
+INCLUDE_GRAPH = NO
+GENERATE_TREEVIEW = YES
+
+LAYOUT_FILE            = doxylayout.xml
+
+HTML_EXTRA_STYLESHEET = docs/style.css
+HTML_COLORSTYLE        = LIGHT
