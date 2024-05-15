@@ -11,13 +11,22 @@ build: src codes builds/$(WARPII_CMAKE_PRESET)/configured
 	source warpii.env && cmake --build --preset $(WARPII_CMAKE_PRESET) --parallel
 
 test: build
-	source warpii.env && cd builds/$(WARPII_CMAKE_PRESET)/test \
-		&& ctest --output-on-failure -R $(WARPII_TEST_FILTER)
+	source warpii.env \
+		&& cd builds/$(WARPII_CMAKE_PRESET)/test \
+		&& ctest --output-on-failure -R $(WARPII_TEST_FILTER) \
+		&& cd .. \
+		&& $(MAKE) doxygen
 
 .PHONY: install-dealii
 install-dealii:
 	source warpii.env && cd script \
 		&& $(MAKE) $(WARPIISOFT)/deps/dealii
+
+doc:
+	source warpii.env \
+		&& WARPII_CMAKE_PRESET=documentation $(MAKE) builds/documentation/configured \
+		&& cd builds/documentation \
+		&& make doxygen
 
 .PHONY: clean
 clean:

@@ -15,6 +15,7 @@
         "cacheVariables": {
             "CMAKE_BUILD_TYPE": "Release",
             "CMAKE_CXX_FLAGS": "-Wall -Wextra -Wpedantic -Werror",
+            "WARPII_DOC_BUILD": "TRUE",
             "CMAKE_EXPORT_COMPILE_COMMANDS": "no"
         }
     },
@@ -30,6 +31,7 @@
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "yes",
+        "WARPII_DOC_BUILD": "TRUE",
         "DEALII_INSTALL_DIR": "$env{WARPIISOFT}/deps/dealii/dealii-$env{DEALII_VERSION}-RelWithDebInfo"
       }
     },
@@ -45,7 +47,19 @@
         "CMAKE_C_COMPILER": "clang",
         "CMAKE_CXX_COMPILER": "clang++",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "yes",
+        "WARPII_DOC_BUILD": "TRUE",
         "DEALII_INSTALL_DIR": "$env{WARPIISOFT}/deps/dealii/dealii-$env{DEALII_VERSION}-RelWithDebInfo"
+      }
+    },
+    {
+      "name": "documentation",
+      "displayName": "Documentation",
+      "description": "Preset for doxygen build",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/builds/${presetName}",
+      "cacheVariables": {
+        "WARPII_DOC_BUILD": "TRUE",
+        "WARPII_ONLY_DOCS": "TRUE"
       }
     }
   ],

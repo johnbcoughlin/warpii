@@ -11,6 +11,9 @@ RUN apt-get install -y openmpi-bin libopenmpi-dev
 # Install deal.ii
 RUN apt-add-repository ppa:ginggs/deal.ii-9.5.1-backports && apt-get install -y libdeal.ii-dev
 
+# Install doxygen
+RUN apt-get install -y doxygen
+
 RUN cd $HOME \
     && git clone https://github.com/johnbcoughlin/warpii.git \
     && cd warpii \
