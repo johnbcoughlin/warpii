@@ -1,9 +1,9 @@
 set Application = FiveMoment
 set n_dims = 1
-set t_end = 0.007
+set t_end = 0.016
 set fields_enabled = false
 
-set fe_degree = 2
+set fe_degree = 4
 
 set n_species = 1
 set n_boundaries = 2
