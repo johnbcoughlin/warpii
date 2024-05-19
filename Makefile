@@ -15,7 +15,7 @@ test: build
 		&& cd builds/$(WARPII_CMAKE_PRESET)/test \
 		&& ctest --output-on-failure -R $(WARPII_TEST_FILTER) \
 		&& cd .. \
-		&& $(MAKE) doxygen
+		&& $(MAKE) doxygen >/dev/null
 
 .PHONY: install-dealii
 install-dealii:
