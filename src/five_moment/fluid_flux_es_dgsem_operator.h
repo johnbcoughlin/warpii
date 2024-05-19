@@ -160,6 +160,36 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_inverse_mass_matrix(
 }
 
 template <int dim>
+VectorizedArray<double> jacobian_determinant(
+    const FEEvaluation<dim, -1, 0, dim + 2, double>& phi, unsigned int q) {
+    Tensor<2, dim, VectorizedArray<double>> Jinv_j = phi.inverse_jacobian(q);
+    VectorizedArray<double> Jdet_j = 1.0 / warpii::determinant(Jinv_j);
+    return Jdet_j;
+}
+
+/**
+ * Computes the contravariant basis vector Ja^d at the quadrature point q,
+ * where d is the dimension index.
+ *
+ * For details on what we're doing here, see Winters et al. (2020),
+ * "Construction of Modern Robust Nodal Discontinuous Galerkin Spectral Element
+ * Methods for the Compressible Navier-Stokes Equations", Section 4.3
+ *
+ * This is equation (172), taking advantage of the fact that
+ * `FEEvaluation::inverse_jacobian` returns precisely the matrix whose columns
+ * are \vec{a}^i. We then multiply by the Jacobian determinant J.
+ */
+template <int dim>
+Tensor<1, dim, VectorizedArray<double>> scaled_contravariant_basis_vector(
+    const FEEvaluation<dim, -1, 0, dim + 2, double>& phi, 
+    unsigned int q, unsigned int d) {
+    Tensor<2, dim, VectorizedArray<double>> Jinv_j = phi.inverse_jacobian(q);
+    VectorizedArray<double> Jdet_j = jacobian_determinant(phi, q);
+
+    return Jdet_j * tensor_column(Jinv_j, d);
+}
+
+template <int dim>
 void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
     const MatrixFree<dim, double> &mf,
     LinearAlgebra::distributed::Vector<double> &dst,
@@ -200,10 +230,8 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
                 }
 
                 for (const unsigned int qj : phi.quadrature_point_indices()) {
-                    Tensor<2, dim, VectorizedArray<double>> Jinv_j = phi.inverse_jacobian(qj);
-                    VectorizedArray<double> Jdet_j = 1.0 / warpii::determinant(Jinv_j);
-
-                    auto Jai_j = Jdet_j * tensor_column(Jinv_j, d);
+                    auto Jdet_j = jacobian_determinant(phi, qj);
+                    auto Jai_j = scaled_contravariant_basis_vector(phi, qj, d);
 
                     unsigned int j = quad_point_1d_index(qj, Np, d);
                     auto uj = phi_reader.get_value(qj);
@@ -216,7 +244,7 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
                         unsigned int ql = quadrature_point_neighbor(qj, l, Np, d);
                         Tensor<2, dim, VectorizedArray<double>> Jinv_l = phi.inverse_jacobian(ql);
                         VectorizedArray<double> Jdet_l = 1.0 / warpii::determinant(Jinv_l);
-                        auto Jai_l = Jdet_l * tensor_column(Jinv_j, d);
+                        auto Jai_l = Jdet_l * tensor_column(Jinv_l, d);
 
                         const auto Jai_avg = 0.5 * (Jai_j + Jai_l);
 
