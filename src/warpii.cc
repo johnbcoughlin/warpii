@@ -112,10 +112,16 @@ void Warpii::run() {
         enable_floating_point_exceptions();
     }
 
-    prm.declare_entry("Application", "FiveMoment", Patterns::Selection("FiveMoment"));
+    prm.declare_entry("Application", "FiveMoment", Patterns::Selection("FiveMoment|FPETest"));
     prm.parse_input_from_string(input, "", true);
 
     std::unique_ptr<ApplicationWrapper> app_wrapper;
+    if (prm.get("Application") == "FPETest") {
+        // A dummy application that immediately throws an FPE.
+        // The point is to exercise the enable_floating_point_exceptions() codepath in test.
+        std::cout << sqrt(-1.0) << std::endl;
+        exit(0);
+    }
     if (prm.get("Application") == "FiveMoment") {
         app_wrapper = std::make_unique<five_moment::FiveMomentWrapper>();
     }

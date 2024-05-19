@@ -9,18 +9,7 @@ shift
 # Set up an initial condition that will result in an FPE when we try to take
 # the sqrt of a negative pressure
 read -r -d '' BAD_INPUT <<'EOF'
-set Application = FiveMoment
-set n_dims = 1
-set fe_degree = 2
-set t_end = 1.0
-
-set n_species = 1
-
-subsection Species_1
-    subsection InitialCondition
-        set Function expression = 1.0; 0.0; -1.0
-    end
-end
+set Application = FPETest
 EOF
 
 if [ "$(uname)" == "Darwin" ]; then
