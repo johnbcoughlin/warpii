@@ -62,3 +62,42 @@ end
     EXPECT_NEAR(errors[0] / errors[1], pow(30.0/20, 3), 1.0);
 }
 
+TEST(InputTest, SodShocktube) {
+    Warpii warpii_obj;
+    std::string input = R"(
+set Application = FiveMoment
+set n_dims = 1
+set t_end = 0.1
+set write_output = false
+
+set fe_degree = 4
+
+set n_boundaries = 2
+
+subsection geometry
+    set left = 0.0
+    set right = 1.0
+    set nx = 100
+    set periodic_dimensions =
+end
+
+subsection Species_1
+    subsection InitialCondition
+        set Function constants = gamma=1.66667
+        set Function expression = if(x < 0.5, 1.0, 0.10); \
+                                  0.0; \
+                                  if(x < 0.5, 1.0, 0.125) / (gamma - 1)
+    end
+
+    subsection BoundaryConditions
+        set 0 = Outflow
+        set 1 = Outflow
+    end
+end
+    )";
+
+    warpii_obj.opts.fpe = true;
+    warpii_obj.input = input;
+    warpii_obj.run();
+}
+
