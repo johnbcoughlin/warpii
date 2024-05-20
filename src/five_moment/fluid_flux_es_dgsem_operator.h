@@ -559,19 +559,6 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
                 auto numerical_flux =
                     euler_numerical_flux<dim>(w_m, w_p, normal, gas_gamma);
 
-                /*
-                if (at_outflow) {
-                    for (unsigned int v = 0;
-                         v < VectorizedArray<double>::size(); ++v) {
-                        if (rho_u_dot_n[v] < -1e-12) {
-                            for (unsigned int d = 0; d < 1; ++d) {
-                                numerical_flux[d + 1][v] = 0.;
-                            }
-                        }
-                    }
-                }
-                */
-
                 phi.submit_value(analytic_flux - numerical_flux, q);
             }
             phi.integrate_scatter(EvaluationFlags::values, dst);
