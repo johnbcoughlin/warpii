@@ -168,11 +168,13 @@ std::unique_ptr<FiveMomentApp<dim>> FiveMomentApp<dim>::create_from_parameters(
     bool write_output = prm.get_bool("write_output");
     unsigned int n_writeout_frames = prm.get_integer("n_writeout_frames");
 
+    unsigned int n_nonmesh_unknowns = n_boundaries;
+
     auto discretization = std::make_shared<FiveMomentDGDiscretization<dim>>(
         grid, n_components, fe_degree);
 
     auto dg_solver = std::make_unique<FiveMomentDGSolver<dim>>(
-        discretization, species, gas_gamma, t_end);
+        discretization, species, gas_gamma, t_end, n_nonmesh_unknowns);
 
     auto app = std::make_unique<FiveMomentApp<dim>>(discretization, species,
                                                     grid, std::move(dg_solver),

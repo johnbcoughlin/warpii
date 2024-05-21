@@ -51,10 +51,10 @@ class LowStorageRungeKuttaIntegrator {
     unsigned int n_stages() const { return bi.size(); }
 
     template <typename VectorType, typename Operator>
-    void perform_time_step(const Operator &pde_operator,
+    void perform_time_step(const Operator& pde_operator,
                            const double current_time, const double time_step,
-                           VectorType &solution, VectorType &vec_ri,
-                           VectorType &vec_ki) const {
+                           VectorType& solution, VectorType& vec_ri,
+                           VectorType& vec_ki) const {
         AssertDimension(ai.size() + 1, bi.size());
 
         pde_operator.perform_stage(current_time, bi[0] * time_step,
@@ -76,48 +76,45 @@ class LowStorageRungeKuttaIntegrator {
     std::vector<double> ci;
 };
 
-template <typename Number, typename Operator>
+template <typename Number, typename SolutionVec, typename Operator>
 class SSPRK2Integrator {
-    using VectorType = LinearAlgebra::distributed::Vector<Number>;
-
    public:
     SSPRK2Integrator() {}
 
-    void evolve_one_time_step(
-            Operator& forward_euler_operator, 
-            // Destination
-            VectorType& solution,
-            const double dt,
-            const double t);
+    void evolve_one_time_step(Operator& forward_euler_operator,
+                              // Destination
+                              SolutionVec& solution,
+                              const double dt,
+                              const double t);
 
-    void reinit(VectorType& sol, int sol_register_count);
+    void reinit(SolutionVec& sol, int sol_register_count);
 
    private:
-    VectorType f_1;
-    std::vector<VectorType> sol_registers;
+    SolutionVec f_1;
+    std::vector<SolutionVec> sol_registers;
+    std::vector<SolutionVec> nonmesh_sol_registers;
 };
 
-template <typename Number, typename Operator>
-void SSPRK2Integrator<Number, Operator>::evolve_one_time_step(
-        Operator& forward_euler_operator,
-        LinearAlgebra::distributed::Vector<Number> &solution,
-        const double dt,
-        const double t) {
+template <typename Number, typename SolutionVec, typename Operator>
+void SSPRK2Integrator<Number, SolutionVec, Operator>::evolve_one_time_step(
+    Operator& forward_euler_operator,
+    SolutionVec& solution,
+    const double dt, const double t) {
     forward_euler_operator.perform_forward_euler_step(
-            f_1, solution, sol_registers, dt, t);
+        f_1, solution, sol_registers, dt, t);
+
     forward_euler_operator.perform_forward_euler_step(
-            solution, f_1, sol_registers, dt, t+dt,
-            0.5, 0.5);
+        solution, f_1, sol_registers, dt, t + dt, 0.5, 0.5);
 }
 
-template <typename Number, typename Operator>
-void SSPRK2Integrator<Number, Operator>::reinit(
-        LinearAlgebra::distributed::Vector<Number>& sol,
-        int sol_register_count) {
-    f_1.reinit(sol);
+template <typename Number, typename SolutionVec, typename Operator>
+void SSPRK2Integrator<Number, SolutionVec, Operator>::reinit(
+    SolutionVec& sol,
+    int sol_register_count) {
+    reinit_solution_vec(f_1, sol);
     for (int i = 0; i < sol_register_count; i++) {
-        LinearAlgebra::distributed::Vector<Number> sol_register;
-        sol_register.reinit(sol);
+        SolutionVec sol_register;
+        reinit_solution_vec(sol_register, sol);
         sol_registers.push_back(sol_register);
     }
 }
