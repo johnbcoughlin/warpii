@@ -101,7 +101,6 @@ void SSPRK2Integrator<Number, SolutionVec, Operator>::evolve_one_time_step(
     const double dt, const double t) {
     forward_euler_operator.perform_forward_euler_step(
         f_1, solution, sol_registers, dt, t);
-
     forward_euler_operator.perform_forward_euler_step(
         solution, f_1, sol_registers, dt, t + dt, 0.5, 0.5);
 }
@@ -110,10 +109,10 @@ template <typename Number, typename SolutionVec, typename Operator>
 void SSPRK2Integrator<Number, SolutionVec, Operator>::reinit(
     SolutionVec& sol,
     int sol_register_count) {
-    reinit_solution_vec(f_1, sol);
+    f_1.reinit(sol);
     for (int i = 0; i < sol_register_count; i++) {
         SolutionVec sol_register;
-        reinit_solution_vec(sol_register, sol);
+        sol_register.reinit(sol);
         sol_registers.push_back(sol_register);
     }
 }

@@ -8,6 +8,7 @@
 #include <deal.II/fe/fe_series.h>
 #include <deal.II/fe/fe_update_flags.h>
 #include <deal.II/fe/fe_values_extractors.h>
+#include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/matrix_free/matrix_free.h>
 
@@ -80,7 +81,8 @@ class FluidFluxESDGSEMOperator {
         const MatrixFree<dim, double> &mf,
         LinearAlgebra::distributed::Vector<double> &dst,
         const LinearAlgebra::distributed::Vector<double> &src,
-        const std::pair<unsigned int, unsigned int> &face_range) const;
+        const std::pair<unsigned int, unsigned int> &face_range,
+        FiveMBoundaryIntegratedFluxesVector& boundary_integrated_fluxes) const;
 
     double compute_cell_transport_speed(
         const MatrixFree<dim, double> &mf,
@@ -137,10 +139,40 @@ void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
             }
         }
 
+        std::function<void(const MatrixFree< dim, Number> &, 
+                LinearAlgebra::distributed::Vector<double>&, 
+                const LinearAlgebra::distributed::Vector<double>&, 
+                const std::pair< unsigned int, unsigned int > &)> cell_operation =
+            [&](const MatrixFree< dim, Number> &mf, LinearAlgebra::distributed::Vector<double>&dst, 
+                    const LinearAlgebra::distributed::Vector<double>&src, 
+                    const std::pair< unsigned int, unsigned int > &cell_range) -> void {
+                this->local_apply_cell(mf, dst, src, cell_range);
+            };
+        std::function<void(const MatrixFree< dim, Number> &, 
+                LinearAlgebra::distributed::Vector<double>&, 
+                const LinearAlgebra::distributed::Vector<double>&, 
+                const std::pair< unsigned int, unsigned int > &)> face_operation =
+            [&](const MatrixFree< dim, Number> &mf, LinearAlgebra::distributed::Vector<double>&dst, 
+                    const LinearAlgebra::distributed::Vector<double>&src, 
+                    const std::pair< unsigned int, unsigned int > &cell_range) -> void {
+                this->local_apply_face(mf, dst, src, cell_range);
+            };
+        FiveMBoundaryIntegratedFluxesVector& d_dt_boundary_integrated_fluxes = dudt_register.boundary_integrated_fluxes;
+        std::function<void(const MatrixFree< dim, Number> &, 
+                LinearAlgebra::distributed::Vector<double>&, 
+                const LinearAlgebra::distributed::Vector<double>&, 
+                const std::pair< unsigned int, unsigned int > &)> boundary_operation =
+            [this, &d_dt_boundary_integrated_fluxes](const MatrixFree< dim, Number> &mf, LinearAlgebra::distributed::Vector<double>&dst, 
+                    const LinearAlgebra::distributed::Vector<double>&src, 
+                    const std::pair< unsigned int, unsigned int > &cell_range) -> void {
+                this->local_apply_boundary_face(mf, dst, src, cell_range, 
+                        d_dt_boundary_integrated_fluxes);
+            };
+
         discretization->mf.loop(
-            &FluidFluxESDGSEMOperator<dim>::local_apply_cell,
-            &FluidFluxESDGSEMOperator<dim>::local_apply_face,
-            &FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face, this,
+            cell_operation,
+            face_operation,
+            boundary_operation,
             Mdudt_register.mesh_sol, u.mesh_sol, true,
             MatrixFree<dim, double>::DataAccessOnFaces::values,
             MatrixFree<dim, double>::DataAccessOnFaces::values);
@@ -166,6 +198,10 @@ void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
                 dudt_register.boundary_integrated_fluxes);
         dst.boundary_integrated_fluxes.sadd(1.0, alpha, 
                 u.boundary_integrated_fluxes);
+
+        for (unsigned int i = 0; i < 6; i++) {
+            std::cout << dst.boundary_integrated_fluxes.data[i] << std::endl;
+        }
     }
 }
 
@@ -498,18 +534,22 @@ template <int dim>
 void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
     const MatrixFree<dim> &mf, LinearAlgebra::distributed::Vector<double> &dst,
     const LinearAlgebra::distributed::Vector<double> &src,
-    const std::pair<unsigned int, unsigned int> &face_range) const {
+    const std::pair<unsigned int, unsigned int> &face_range,
+    FiveMBoundaryIntegratedFluxesVector &d_dt_boundary_integrated_fluxes) const {
     for (unsigned int species_index = 0; species_index < n_species;
          species_index++) {
         EulerBCMap<dim> &bc_map = species.at(species_index)->bc_map;
         unsigned int first_component = species_index * (dim + 2);
         FEFaceEvaluation<dim, -1, 0, dim + 2, double> phi(mf, true, 0, 0,
                                                           first_component);
+        FEFaceEvaluation<dim, -1, 0, dim + 2, double> phi_boundary_flux_integrator(
+                mf, true, 0, 0, first_component);
 
         for (unsigned int face = face_range.first; face < face_range.second;
              ++face) {
             phi.reinit(face);
             phi.gather_evaluate(src, EvaluationFlags::values);
+            phi_boundary_flux_integrator.reinit(face);
 
             const auto boundary_id = mf.get_boundary_id(face);
 
@@ -559,8 +599,23 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
                     euler_numerical_flux<dim>(w_m, w_p, normal, gas_gamma);
 
                 phi.submit_value(analytic_flux - numerical_flux, q);
+                phi_boundary_flux_integrator.submit_value(numerical_flux, q);
             }
             phi.integrate_scatter(EvaluationFlags::values, dst);
+
+            /**
+             * While we are here at this face, integrate the numerical flux across it
+             * for use in diagnostics.
+             */
+            Tensor<1, dim+2, VectorizedArray<double>> integrated_boundary_flux = 
+                phi_boundary_flux_integrator.integrate_value();
+            for (unsigned int lane = 0; lane < mf.n_active_entries_per_face_batch(face); lane++) {
+                Tensor<1, dim+2, double> tensor;
+                for (unsigned int comp = 0; comp < dim+2; comp++) {
+                    tensor[comp] = integrated_boundary_flux[comp][lane];
+                }
+                d_dt_boundary_integrated_fluxes.add<dim>(boundary_id, tensor);
+            }
         }
     }
 }

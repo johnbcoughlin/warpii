@@ -67,7 +67,7 @@ template <int dim>
 void FiveMomentDGSolver<dim>::reinit() {
     discretization->reinit();
     discretization->perform_allocation(solution.mesh_sol);
-    solution.boundary_integrated_fluxes.reinit(n_boundaries);
+    solution.boundary_integrated_fluxes.reinit(n_boundaries, dim);
     ssp_integrator.reinit(solution, 3);
 
     for (unsigned int i = 0; i < species.size(); i++) {
