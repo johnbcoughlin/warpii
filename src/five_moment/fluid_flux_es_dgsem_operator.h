@@ -162,8 +162,10 @@ void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
                 }
             });
         // dst = beta * dest + alpha * (u + dt * dudt)
-        dst.nonmesh_sol.sadd(beta, alpha * dt, dudt_register.nonmesh_sol);
-        dst.nonmesh_sol.sadd(1.0, alpha, u.nonmesh_sol);
+        dst.boundary_integrated_fluxes.sadd(beta, alpha * dt, 
+                dudt_register.boundary_integrated_fluxes);
+        dst.boundary_integrated_fluxes.sadd(1.0, alpha, 
+                u.boundary_integrated_fluxes);
     }
 }
 

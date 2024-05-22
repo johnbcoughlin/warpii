@@ -38,12 +38,12 @@ class FiveMomentDGSolver {
         std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization,
         std::vector<std::shared_ptr<Species<dim>>> species, double gas_gamma,
         double t_end,
-        unsigned int n_nonmesh_unknowns)
+        unsigned int n_boundaries)
         : t_end(t_end),
           discretization(discretization),
           species(species),
           fluid_flux_operator(discretization, gas_gamma, species),
-          n_nonmesh_unknowns(n_nonmesh_unknowns)
+          n_boundaries(n_boundaries)
         {}
 
     void reinit();
@@ -60,14 +60,14 @@ class FiveMomentDGSolver {
 
     SSPRK2Integrator<double, FiveMSolutionVec, FluidFluxESDGSEMOperator<dim>> ssp_integrator;
     FluidFluxESDGSEMOperator<dim> fluid_flux_operator;
-    unsigned int n_nonmesh_unknowns;
+    unsigned int n_boundaries;
 };
 
 template <int dim>
 void FiveMomentDGSolver<dim>::reinit() {
     discretization->reinit();
     discretization->perform_allocation(solution.mesh_sol);
-    solution.nonmesh_sol.reinit(n_nonmesh_unknowns);
+    solution.boundary_integrated_fluxes.reinit(n_boundaries);
     ssp_integrator.reinit(solution, 3);
 
     for (unsigned int i = 0; i < species.size(); i++) {

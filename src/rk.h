@@ -92,7 +92,6 @@ class SSPRK2Integrator {
    private:
     SolutionVec f_1;
     std::vector<SolutionVec> sol_registers;
-    std::vector<SolutionVec> nonmesh_sol_registers;
 };
 
 template <typename Number, typename SolutionVec, typename Operator>
