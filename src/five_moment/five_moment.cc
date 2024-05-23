@@ -28,12 +28,12 @@ std::unique_ptr<AbstractApp> FiveMomentWrapper::create_app(
             prm.parse_input_from_string(input, "", false);
             return FiveMomentApp<1>::create_from_parameters(prm);
         }
-                /*
         case 2: {
             FiveMomentApp<2>::declare_parameters(prm);
             prm.parse_input_from_string(input, "", false);
             return FiveMomentApp<2>::create_from_parameters(prm);
         }
+                /*
         case 3: {
             FiveMomentApp<3>::declare_parameters(prm);
             prm.parse_input_from_string(input, "", false);

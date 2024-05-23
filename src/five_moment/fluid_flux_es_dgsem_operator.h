@@ -554,7 +554,7 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
             for (const unsigned int q : phi.quadrature_point_indices()) {
                 const Tensor<1, dim + 2, VectorizedArray<double>> w_m =
                     phi.get_value(q);
-                const Tensor<1, 1, VectorizedArray<double>> normal =
+                const Tensor<1, dim, VectorizedArray<double>> normal =
                     phi.normal_vector(q);
 
                 auto rho_u_dot_n = w_m[1] * normal[0];
