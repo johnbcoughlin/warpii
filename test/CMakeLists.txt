@@ -14,6 +14,7 @@ set(TEST_SOURCES
     timestepper_test.cc
     euler_test.cc
     conservation_test.cc
+    dof_utils_test.cc
     # Add more test files here as needed
 )
 

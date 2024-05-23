@@ -310,7 +310,7 @@ void FluidFluxESDGSEMOperator<dim>::calculate_high_order_EC_flux(
         auto Jdet_j = jacobian_determinant(phi, qj);
         auto Jai_j = scaled_contravariant_basis_vector(phi, qj, d);
 
-        unsigned int j = quad_point_1d_index(qj, Np, d);
+        unsigned int j = quad_point_1d_index<dim>(qj, Np, d);
         auto uj = phi_reader.get_value(qj);
         Tensor<1, dim + 2, VectorizedArray<double>> flux_j;
         for (unsigned int di = 0; di < dim; di++) {
@@ -318,7 +318,7 @@ void FluidFluxESDGSEMOperator<dim>::calculate_high_order_EC_flux(
         }
 
         for (unsigned int l = 0; l < Np; l++) {
-            unsigned int ql = quadrature_point_neighbor(qj, l, Np, d);
+            unsigned int ql = quadrature_point_neighbor<dim>(qj, l, Np, d);
             auto Jai_l = scaled_contravariant_basis_vector(phi, ql, d);
 
             const auto Jai_avg = 0.5 * (Jai_j + Jai_l);
@@ -439,9 +439,7 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
         fe_values.get_quadrature().get_weights();
 
     std::vector<unsigned int> n_coefs_per_dim = {};
-    for (unsigned int d = 0; d < dim; d++) {
-        n_coefs_per_dim.push_back(Np);
-    }
+    n_coefs_per_dim.push_back(Np);
     auto fe_collection = hp::FECollection<dim>(fe_values.get_fe().base_element(0));
     auto q_collection = hp::QCollection<dim>(fe_values.get_quadrature());
     FESeries::Legendre<dim> legendre(
