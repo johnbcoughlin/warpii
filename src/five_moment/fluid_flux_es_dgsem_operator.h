@@ -8,6 +8,7 @@
 #include <deal.II/fe/fe_series.h>
 #include <deal.II/fe/fe_update_flags.h>
 #include <deal.II/fe/fe_values_extractors.h>
+#include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/matrix_free/matrix_free.h>
 
@@ -15,6 +16,7 @@
 #include "dg_discretization.h"
 #include "euler.h"
 #include "species.h"
+#include "solution_vec.h"
 
 namespace warpii {
 namespace five_moment {
@@ -46,15 +48,15 @@ class FluidFluxESDGSEMOperator {
           species(species) {}
 
     void perform_forward_euler_step(
-        LinearAlgebra::distributed::Vector<double> &dst,
-        const LinearAlgebra::distributed::Vector<double> &u,
-        std::vector<LinearAlgebra::distributed::Vector<double>> &sol_registers,
+            FiveMSolutionVec &dst,
+            const FiveMSolutionVec &u,
+        std::vector<FiveMSolutionVec> &sol_registers,
         const double dt, const double t, const double alpha = 1.0,
         const double beta = 0.0) const;
 
     double recommend_dt(
         const MatrixFree<dim, double> &mf,
-            const LinearAlgebra::distributed::Vector<double> &sol);
+            const FiveMSolutionVec &sol);
 
    private:
     void local_apply_inverse_mass_matrix(
@@ -79,7 +81,8 @@ class FluidFluxESDGSEMOperator {
         const MatrixFree<dim, double> &mf,
         LinearAlgebra::distributed::Vector<double> &dst,
         const LinearAlgebra::distributed::Vector<double> &src,
-        const std::pair<unsigned int, unsigned int> &face_range) const;
+        const std::pair<unsigned int, unsigned int> &face_range,
+        FiveMBoundaryIntegratedFluxesVector& boundary_integrated_fluxes) const;
 
     double compute_cell_transport_speed(
         const MatrixFree<dim, double> &mf,
@@ -118,9 +121,9 @@ class FluidFluxESDGSEMOperator {
 
 template <int dim>
 void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
-    LinearAlgebra::distributed::Vector<double> &dst,
-    const LinearAlgebra::distributed::Vector<double> &u,
-    std::vector<LinearAlgebra::distributed::Vector<double>> &sol_registers,
+        FiveMSolutionVec &dst,
+        const FiveMSolutionVec &u,
+    std::vector<FiveMSolutionVec> &sol_registers,
     const double dt, const double t, const double alpha,
     const double beta) const {
     using Iterator = typename DoFHandler<1>::active_cell_iterator;
@@ -136,11 +139,41 @@ void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
             }
         }
 
+        std::function<void(const MatrixFree< dim, Number> &, 
+                LinearAlgebra::distributed::Vector<double>&, 
+                const LinearAlgebra::distributed::Vector<double>&, 
+                const std::pair< unsigned int, unsigned int > &)> cell_operation =
+            [&](const MatrixFree< dim, Number> &mf, LinearAlgebra::distributed::Vector<double>&dst, 
+                    const LinearAlgebra::distributed::Vector<double>&src, 
+                    const std::pair< unsigned int, unsigned int > &cell_range) -> void {
+                this->local_apply_cell(mf, dst, src, cell_range);
+            };
+        std::function<void(const MatrixFree< dim, Number> &, 
+                LinearAlgebra::distributed::Vector<double>&, 
+                const LinearAlgebra::distributed::Vector<double>&, 
+                const std::pair< unsigned int, unsigned int > &)> face_operation =
+            [&](const MatrixFree< dim, Number> &mf, LinearAlgebra::distributed::Vector<double>&dst, 
+                    const LinearAlgebra::distributed::Vector<double>&src, 
+                    const std::pair< unsigned int, unsigned int > &cell_range) -> void {
+                this->local_apply_face(mf, dst, src, cell_range);
+            };
+        FiveMBoundaryIntegratedFluxesVector& d_dt_boundary_integrated_fluxes = dudt_register.boundary_integrated_fluxes;
+        std::function<void(const MatrixFree< dim, Number> &, 
+                LinearAlgebra::distributed::Vector<double>&, 
+                const LinearAlgebra::distributed::Vector<double>&, 
+                const std::pair< unsigned int, unsigned int > &)> boundary_operation =
+            [this, &d_dt_boundary_integrated_fluxes](const MatrixFree< dim, Number> &mf, LinearAlgebra::distributed::Vector<double>&dst, 
+                    const LinearAlgebra::distributed::Vector<double>&src, 
+                    const std::pair< unsigned int, unsigned int > &cell_range) -> void {
+                this->local_apply_boundary_face(mf, dst, src, cell_range, 
+                        d_dt_boundary_integrated_fluxes);
+            };
+
         discretization->mf.loop(
-            &FluidFluxESDGSEMOperator<dim>::local_apply_cell,
-            &FluidFluxESDGSEMOperator<dim>::local_apply_face,
-            &FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face, this,
-            Mdudt_register, u, true,
+            cell_operation,
+            face_operation,
+            boundary_operation,
+            Mdudt_register.mesh_sol, u.mesh_sol, true,
             MatrixFree<dim, double>::DataAccessOnFaces::values,
             MatrixFree<dim, double>::DataAccessOnFaces::values);
     }
@@ -148,25 +181,25 @@ void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
     {
         discretization->mf.cell_loop(
             &FluidFluxESDGSEMOperator<dim>::local_apply_inverse_mass_matrix,
-            this, dudt_register, Mdudt_register,
+            this, dudt_register.mesh_sol, Mdudt_register.mesh_sol,
             std::function<void(const unsigned int, const unsigned int)>(),
             [&](const unsigned int start_range, const unsigned int end_range) {
                 /* DEAL_II_OPENMP_SIMD_PRAGMA */
                 for (unsigned int i = start_range; i < end_range; ++i) {
-                    const double dudt_i = dudt_register.local_element(i);
-                    const double dst_i = dst.local_element(i);
-                    const double u_i = u.local_element(i);
-                    sol_before_limiting.local_element(i) =
+                    const double dudt_i = dudt_register.mesh_sol.local_element(i);
+                    const double dst_i = dst.mesh_sol.local_element(i);
+                    const double u_i = u.mesh_sol.local_element(i);
+                    dst.mesh_sol.local_element(i) =
                         beta * dst_i + alpha * (u_i + dt * dudt_i);
                 }
             });
-    }
-
-    {
-        // discretization->mf.cell_loop(
-        //&FluidFluxDGOperator<dim>::local_apply_positivity_limiter, this,
-        // dst, sol_before_limiting);
-        dst.sadd(0.0, 1.0, sol_before_limiting);
+        // dst = beta * dest + alpha * (u + dt * dudt)
+        if (!dst.boundary_integrated_fluxes.is_empty()) {
+            dst.boundary_integrated_fluxes.sadd(beta, alpha * dt, 
+                    dudt_register.boundary_integrated_fluxes);
+            dst.boundary_integrated_fluxes.sadd(1.0, alpha, 
+                    u.boundary_integrated_fluxes);
+        }
     }
 }
 
@@ -499,18 +532,22 @@ template <int dim>
 void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
     const MatrixFree<dim> &mf, LinearAlgebra::distributed::Vector<double> &dst,
     const LinearAlgebra::distributed::Vector<double> &src,
-    const std::pair<unsigned int, unsigned int> &face_range) const {
+    const std::pair<unsigned int, unsigned int> &face_range,
+    FiveMBoundaryIntegratedFluxesVector &d_dt_boundary_integrated_fluxes) const {
     for (unsigned int species_index = 0; species_index < n_species;
          species_index++) {
         EulerBCMap<dim> &bc_map = species.at(species_index)->bc_map;
         unsigned int first_component = species_index * (dim + 2);
         FEFaceEvaluation<dim, -1, 0, dim + 2, double> phi(mf, true, 0, 0,
                                                           first_component);
+        FEFaceEvaluation<dim, -1, 0, dim + 2, double> phi_boundary_flux_integrator(
+                mf, true, 0, 0, first_component);
 
         for (unsigned int face = face_range.first; face < face_range.second;
              ++face) {
             phi.reinit(face);
             phi.gather_evaluate(src, EvaluationFlags::values);
+            phi_boundary_flux_integrator.reinit(face);
 
             const auto boundary_id = mf.get_boundary_id(face);
 
@@ -559,22 +596,24 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
                 auto numerical_flux =
                     euler_numerical_flux<dim>(w_m, w_p, normal, gas_gamma);
 
-                /*
-                if (at_outflow) {
-                    for (unsigned int v = 0;
-                         v < VectorizedArray<double>::size(); ++v) {
-                        if (rho_u_dot_n[v] < -1e-12) {
-                            for (unsigned int d = 0; d < 1; ++d) {
-                                numerical_flux[d + 1][v] = 0.;
-                            }
-                        }
-                    }
-                }
-                */
-
                 phi.submit_value(analytic_flux - numerical_flux, q);
+                phi_boundary_flux_integrator.submit_value(numerical_flux, q);
             }
             phi.integrate_scatter(EvaluationFlags::values, dst);
+
+            /**
+             * While we are here at this face, integrate the numerical flux across it
+             * for use in diagnostics.
+             */
+            Tensor<1, dim+2, VectorizedArray<double>> integrated_boundary_flux = 
+                phi_boundary_flux_integrator.integrate_value();
+            for (unsigned int lane = 0; lane < mf.n_active_entries_per_face_batch(face); lane++) {
+                Tensor<1, dim+2, double> tensor;
+                for (unsigned int comp = 0; comp < dim+2; comp++) {
+                    tensor[comp] = integrated_boundary_flux[comp][lane];
+                }
+                d_dt_boundary_integrated_fluxes.add<dim>(boundary_id, tensor);
+            }
         }
     }
 }
@@ -582,8 +621,8 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
 template <int dim>
 double FluidFluxESDGSEMOperator<dim>::recommend_dt(
         const MatrixFree<dim, double> &mf,
-    const LinearAlgebra::distributed::Vector<double> &sol) {
-    double max_transport_speed = compute_cell_transport_speed(mf, sol);
+    const FiveMSolutionVec &sol) {
+    double max_transport_speed = compute_cell_transport_speed(mf, sol.mesh_sol);
     unsigned int fe_degree = discretization->get_fe_degree();
     return 1.0 / (max_transport_speed * (fe_degree + 1) * (fe_degree + 1));
 }
@@ -591,7 +630,7 @@ double FluidFluxESDGSEMOperator<dim>::recommend_dt(
 template <int dim>
 double FluidFluxESDGSEMOperator<dim>::compute_cell_transport_speed(
     const MatrixFree<dim, double> &mf,
-    const LinearAlgebra::distributed::Vector<Number> &solution) const {
+    const LinearAlgebra::distributed::Vector<double> &solution) const {
     using VA = VectorizedArray<Number>;
 
     Number max_transport = 0;

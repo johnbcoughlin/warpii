@@ -16,7 +16,6 @@ set write_output = false
 }
 
 TEST(InputTest, FreeStream) {
-    Warpii warpii_obj;
     std::string input_template = R"(
 set Application = FiveMoment
 set n_dims = 1
@@ -48,6 +47,7 @@ end
     std::vector<unsigned int> Nxs = { 20, 30 };
     std::vector<double> errors;
     for (unsigned int i = 0; i < Nxs.size(); i++) {
+        Warpii warpii_obj;
         std::stringstream input;
         input << input_template;
         input << "subsection geometry\n set nx = " << Nxs[i] << "\n end";
@@ -58,7 +58,7 @@ end
         auto& disc = app.get_discretization();
         auto& soln = app.get_solution();
 
-        double error = disc.compute_global_error(soln, expected_density, 0);
+        double error = disc.compute_global_error(soln.mesh_sol, expected_density, 0);
         std::cout << "error = " << error << std::endl;
         errors.push_back(error);
     }

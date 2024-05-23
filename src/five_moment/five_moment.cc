@@ -15,7 +15,7 @@ void FiveMomentWrapper::declare_parameters(ParameterHandler &prm) {
 R"(The number of dimensions in the problem.
     )");
     prm.declare_entry("n_species", "1", Patterns::Integer());
-    prm.declare_entry("n_boundaries", "1", Patterns::Integer());
+    prm.declare_entry("n_boundaries", "0", Patterns::Integer());
 }
 
 std::unique_ptr<AbstractApp> FiveMomentWrapper::create_app(

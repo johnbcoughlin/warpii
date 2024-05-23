@@ -51,18 +51,11 @@ TEST(EulerFluxTests, EulerCHESTest) {
     Tensor<1, 3, double> left({1.0, 0.0, 1.0 / (gamma - 1.0)});
     Tensor<1, 3, double> right({0.1, 0.0, 0.125 / (gamma - 1.0)});
 
-    Tensor<1, 3, Tensor<1, 1, double>> actual = euler_CH_entropy_dissipating_flux<1>(
-            left, right, gamma);
-    EXPECT_NEAR(actual[0][0], 0.6495190528383291, 1e-15);
-    EXPECT_NEAR(actual[1][0], 0.5 + 1.0 / 9, 1e-15);
-    EXPECT_NEAR(actual[2][0],  0.9381717944489488, 1e-15);
-
-    // Left: rho, u, p = [1.0, 1.0, 1.0]
-    // Right: rho, u, p = [0.5, 0.5, 0.5]
-    left = Tensor<1, 3, double>({1.0, 1.0, 0.5 * 1.0 + 1.0 / (gamma - 1.0)});
-    right = Tensor<1, 3, double>({0.5, 0.5, 0.5 * 0.5 + 0.5 / (gamma - 1.0)});
-    actual = euler_CH_EC_flux<1>(left, right, gamma);
-    //EXPECT_NEAR(actual[0][0], 0.7213475204444817, 1e-15);
-    //EXPECT_NEAR(actual[1][0],  1.4713475204444817, 1e-15);
-    //EXPECT_NEAR(actual[2][0], 2.192695040888963, 1e-15);
+    Tensor<1, 1, double> normal;
+    normal[0] = 1.0;
+    Tensor<1, 3, double> actual = euler_CH_entropy_dissipating_flux<1>(
+            left, right, normal, gamma);
+    EXPECT_NEAR(actual[0], 0.6495190528383291, 1e-15);
+    EXPECT_NEAR(actual[1], 0.5 + 1.0 / 9, 1e-15);
+    EXPECT_NEAR(actual[2],  0.9381717944489488, 1e-15);
 }
