@@ -18,5 +18,9 @@ namespace warpii {
         void FiveMBoundaryIntegratedFluxesVector::reinit(const FiveMBoundaryIntegratedFluxesVector& other) {
             data.reinit(other.data);
         }
+
+        bool FiveMBoundaryIntegratedFluxesVector::is_empty() {
+            return data.size() == 0;
+        }
     }
 }

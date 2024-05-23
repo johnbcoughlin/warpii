@@ -102,7 +102,9 @@ void Warpii::load_input_from_file() {
     this->input = ss.str();
 }
 
-void Warpii::run() { 
+void Warpii::setup() {
+    AssertThrow(!setup_complete, ExcMessage("Cannot call Warpii::setup twice on the same object."));
+
     if (opts.help) {
         Warpii::print_help();
         exit(0);
@@ -126,8 +128,28 @@ void Warpii::run() {
         app_wrapper = std::make_unique<five_moment::FiveMomentWrapper>();
     }
     app_wrapper->declare_parameters(prm);
-    app = app_wrapper->create_app(prm, input);
+    auto new_ptr = app_wrapper->create_app(prm, input);
+    this->app.swap(new_ptr);
+    app->setup(opts);
+
+    setup_complete = true;
+}
+
+void Warpii::run() { 
+    AssertThrow(!run_complete, ExcMessage("Cannot run the same warpii object twice."));
+    if (!setup_complete) {
+        setup();
+    }
+
+    if (opts.help) {
+        Warpii::print_help();
+        exit(0);
+    }
+    std::cout << "app before doing any setup: " << app << std::endl;
+
     app->run(opts);
+
+    run_complete = true;
 }
 
 

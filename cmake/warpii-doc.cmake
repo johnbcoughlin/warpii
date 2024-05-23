@@ -21,3 +21,6 @@ add_custom_target(doxygen
 
 add_dependencies(doxygen copy-docs)
 
+add_test(
+    NAME DoxygenTest
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target doxygen)

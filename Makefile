@@ -12,10 +12,8 @@ build: src codes builds/$(WARPII_CMAKE_PRESET)/configured
 
 test: build
 	source warpii.env \
-		&& cd builds/$(WARPII_CMAKE_PRESET)/test \
-		&& ctest --output-on-failure -R $(WARPII_TEST_FILTER) \
-		&& cd .. \
-		&& $(MAKE) doxygen
+		&& cd builds/$(WARPII_CMAKE_PRESET) \
+		&& ctest --output-on-failure -R $(WARPII_TEST_FILTER)
 
 .PHONY: install-dealii
 install-dealii:

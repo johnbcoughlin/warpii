@@ -18,6 +18,11 @@ namespace warpii {
 
                 void reinit(const FiveMBoundaryIntegratedFluxesVector& other);
 
+                template <int dim>
+                Tensor<1, dim+2, double> at_boundary(unsigned int boundary_id);
+
+                bool is_empty();
+
                 Vector<double> data;
         };
 
@@ -26,6 +31,15 @@ namespace warpii {
             for (unsigned int comp = 0; comp < dim+2; comp++) {
                 data[boundary_id * (dim+2) + comp] += flux[comp];
             }
+        }
+
+        template <int dim>
+        Tensor<1, dim+2, double> FiveMBoundaryIntegratedFluxesVector::at_boundary(unsigned int boundary_id) {
+            Tensor<1, dim+2, double> result;
+            for (unsigned int comp = 0; comp < dim+2; comp++) {
+                result[comp] = data[boundary_id * (dim+2) + comp];
+            }
+            return result;
         }
 
         class FiveMSolutionVec {
