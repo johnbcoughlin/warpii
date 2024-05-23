@@ -145,7 +145,6 @@ void Warpii::run() {
         Warpii::print_help();
         exit(0);
     }
-    std::cout << "app before doing any setup: " << app << std::endl;
 
     app->run(opts);
 

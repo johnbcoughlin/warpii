@@ -622,7 +622,6 @@ template <int dim>
 double FluidFluxESDGSEMOperator<dim>::recommend_dt(
         const MatrixFree<dim, double> &mf,
     const FiveMSolutionVec &sol) {
-    std::cout << "solution ptr: " << &sol << std::endl;
     double max_transport_speed = compute_cell_transport_speed(mf, sol.mesh_sol);
     unsigned int fe_degree = discretization->get_fe_degree();
     return 1.0 / (max_transport_speed * (fe_degree + 1) * (fe_degree + 1));
@@ -633,8 +632,6 @@ double FluidFluxESDGSEMOperator<dim>::compute_cell_transport_speed(
     const MatrixFree<dim, double> &mf,
     const LinearAlgebra::distributed::Vector<double> &solution) const {
     using VA = VectorizedArray<Number>;
-
-    std::cout << "solution size: " << solution.size() << std::endl;
 
     Number max_transport = 0;
 
