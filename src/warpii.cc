@@ -46,6 +46,8 @@ WarpiiOpts parse_opts(int argc, char **argv) {
             break;
         } else if (arg == "--enable-fpe") {
             opts.fpe = true;
+        } else if (arg == "--setup-only") {
+            opts.setup_only = true;
         } else {
             opts.input = arg;
             set_input = true;
@@ -77,6 +79,10 @@ Usage:
   warpii --help | -h
 
 Options:
+  --setup-only: Defaults to false.
+                If this flag is enabled, WarpII will perform only the setup() phase
+                of the simulation.
+
   --enable-fpe: Defaults to false.
                 If this flag is enabled, floating point exceptions will be enabled.
                 This means that any NaNs produced during the simulation will result
@@ -139,6 +145,10 @@ void Warpii::run() {
     AssertThrow(!run_complete, ExcMessage("Cannot run the same warpii object twice."));
     if (!setup_complete) {
         setup();
+        
+        if (opts.setup_only) {
+            exit(0);
+        }
     }
 
     if (opts.help) {

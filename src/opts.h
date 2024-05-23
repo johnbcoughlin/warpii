@@ -21,7 +21,12 @@ struct WarpiiOpts {
      */
     bool fpe;
 
-    WarpiiOpts() : input(""), help(false), fpe(false) {}
+    /**
+     * Whether to stop after the setup phase
+     */
+    bool setup_only;
+
+    WarpiiOpts() : input(""), help(false), fpe(false), setup_only(false) {}
 };
 
 WarpiiOpts parse_opts(int argc, char **argv);
