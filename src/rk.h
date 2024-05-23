@@ -87,7 +87,7 @@ class SSPRK2Integrator {
                               const double dt,
                               const double t);
 
-    void reinit(SolutionVec& sol, int sol_register_count);
+    void reinit(const SolutionVec& sol, int sol_register_count);
 
    private:
     SolutionVec f_1;
@@ -107,13 +107,12 @@ void SSPRK2Integrator<Number, SolutionVec, Operator>::evolve_one_time_step(
 
 template <typename Number, typename SolutionVec, typename Operator>
 void SSPRK2Integrator<Number, SolutionVec, Operator>::reinit(
-    SolutionVec& sol,
+    const SolutionVec& sol,
     int sol_register_count) {
     f_1.reinit(sol);
     for (int i = 0; i < sol_register_count; i++) {
-        SolutionVec sol_register;
-        sol_register.reinit(sol);
-        sol_registers.push_back(sol_register);
+        sol_registers.emplace_back();
+        sol_registers[i].reinit(sol);
     }
 }
 

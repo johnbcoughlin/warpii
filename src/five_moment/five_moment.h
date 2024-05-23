@@ -13,6 +13,7 @@
 #include "dg_solver.h"
 #include "../timestepper.h"
 #include "postprocessor.h"
+#include "solution_vec.h"
 #include "species.h"
 
 using namespace dealii;
@@ -68,13 +69,15 @@ class FiveMomentApp : public AbstractApp {
     static std::unique_ptr<FiveMomentApp<dim>> create_from_parameters(
         ParameterHandler &prm);
 
+    void setup(WarpiiOpts opts) override;
+
     void run(WarpiiOpts opts) override;
 
     void reinit(ParameterHandler &prm);
 
     FiveMomentDGDiscretization<dim> &get_discretization();
 
-    LinearAlgebra::distributed::Vector<double> &get_solution();
+    FiveMSolutionVec &get_solution();
 
     void output_results(const unsigned int result_number);
 
@@ -193,15 +196,19 @@ FiveMomentDGDiscretization<dim> &FiveMomentApp<dim>::get_discretization() {
 }
 
 template <int dim>
-LinearAlgebra::distributed::Vector<double> &FiveMomentApp<dim>::get_solution() {
+FiveMSolutionVec &FiveMomentApp<dim>::get_solution() {
     return solver->get_solution();
 }
 
 template <int dim>
-void FiveMomentApp<dim>::run(WarpiiOpts) {
+void FiveMomentApp<dim>::setup(WarpiiOpts) {
     grid->reinit();
     solver->reinit();
+    solver->project_initial_condition();
+}
 
+template <int dim>
+void FiveMomentApp<dim>::run(WarpiiOpts) {
     double writeout_interval = t_end / n_writeout_frames;
     auto writeout = [&](double t) -> void {
         output_results(static_cast<unsigned int>(std::round(t / writeout_interval)));
@@ -209,7 +216,6 @@ void FiveMomentApp<dim>::run(WarpiiOpts) {
     TimestepCallback writeout_callback = TimestepCallback(writeout_interval, writeout);
 
     solver->solve(writeout_callback);
-    output_results(1);
 }
 
 template <int dim>
@@ -225,6 +231,7 @@ void FiveMomentApp<dim>::output_results(const unsigned int result_number) {
     flags.write_higher_order_cells = false;
     data_out.set_flags(flags);
 
+    auto& sol = get_solution();
     data_out.attach_dof_handler(discretization->get_dof_handler());
     {
         std::vector<std::string> names;
@@ -267,9 +274,9 @@ void FiveMomentApp<dim>::output_results(const unsigned int result_number) {
         }
 
         data_out.add_data_vector(discretization->get_dof_handler(),
-                                 get_solution(), names, interpretation);
+                                 sol.mesh_sol, names, interpretation);
     }
-    data_out.add_data_vector(get_solution(), postprocessor);
+    data_out.add_data_vector(sol.mesh_sol, postprocessor);
 
     Vector<double> mpi_owner(grid->triangulation.n_active_cells());
     mpi_owner = Utilities::MPI::this_mpi_process(MPI_COMM_WORLD);

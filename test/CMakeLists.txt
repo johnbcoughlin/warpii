@@ -7,12 +7,13 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-enable_testing()
 include(GoogleTest)
 
 set(TEST_SOURCES
     input_test.cc
     timestepper_test.cc
+    euler_test.cc
+    conservation_test.cc
     # Add more test files here as needed
 )
 

@@ -35,5 +35,6 @@ add_executable(warpii main.cc)
 target_link_libraries(warpii libwarpii)
 deal_ii_setup_target(warpii)
 
+enable_testing()
 add_subdirectory(test)
 

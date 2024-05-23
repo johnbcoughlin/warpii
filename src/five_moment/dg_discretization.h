@@ -50,6 +50,13 @@ class FiveMomentDGDiscretization {
         Function<dim>& f,
         unsigned int component);
 
+    /**
+     * Computes the global integral of the 
+     */
+    Tensor<1, dim+2, double> compute_global_integral(
+        LinearAlgebra::distributed::Vector<double>& solution,
+        unsigned int species_index);
+
     unsigned int get_fe_degree() {
         return fe_degree;
     }
@@ -156,6 +163,34 @@ double FiveMomentDGDiscretization<dim>::compute_global_error(
             grid->triangulation,
             difference,
             VectorTools::NormType::L2_norm);
+}
+
+template <int dim>
+Tensor<1, dim+2, double> FiveMomentDGDiscretization<dim>::compute_global_integral(
+        LinearAlgebra::distributed::Vector<double>&solution,
+        unsigned int species_index) {
+    unsigned int first_component = species_index * (dim + 2);
+    FEEvaluation<dim, -1, 0, dim+2, double> phi(mf, 0, 1, first_component);
+
+    Tensor<1, dim+2, double> sum;
+    for (unsigned int comp = 0; comp < dim+2; comp++) {
+        sum[comp] = 0.0;
+    }
+    for (unsigned int cell = 0; cell < mf.n_cell_batches(); ++cell) {
+        phi.reinit(cell);
+        phi.gather_evaluate(solution, EvaluationFlags::values);
+        for (unsigned int q : phi.quadrature_point_indices()) {
+            phi.submit_value(phi.get_value(q), q);
+        }
+        auto cell_integral = phi.integrate_value();
+        for (unsigned int lane = 0; lane < mf.n_active_entries_per_cell_batch(cell); lane++) {
+            for (unsigned int comp = 0; comp < dim+2; comp++) {
+                sum[comp] += cell_integral[comp][lane];
+            }
+        }
+    }
+    sum = Utilities::MPI::sum(sum, MPI_COMM_WORLD);
+    return sum;
 }
 
 }  // namespace five_moment

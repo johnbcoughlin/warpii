@@ -48,9 +48,11 @@ class FiveMomentDGSolver {
 
     void reinit();
 
+    void project_initial_condition();
+
     void solve(TimestepCallback callback);
 
-    LinearAlgebra::distributed::Vector<double>& get_solution();
+    FiveMSolutionVec& get_solution();
 
    private:
     double t_end;
@@ -69,12 +71,16 @@ void FiveMomentDGSolver<dim>::reinit() {
     discretization->perform_allocation(solution.mesh_sol);
     solution.boundary_integrated_fluxes.reinit(n_boundaries, dim);
     ssp_integrator.reinit(solution, 3);
+}
 
+template <int dim>
+void FiveMomentDGSolver<dim>::project_initial_condition() {
     for (unsigned int i = 0; i < species.size(); i++) {
         discretization->project_fluid_quantities(
             *species.at(i)->initial_condition, solution.mesh_sol, i);
     }
 }
+
 
 template <int dim>
 void FiveMomentDGSolver<dim>::solve(TimestepCallback writeout_callback) {
@@ -92,9 +98,9 @@ void FiveMomentDGSolver<dim>::solve(TimestepCallback writeout_callback) {
 }
 
 template <int dim>
-LinearAlgebra::distributed::Vector<double>&
+FiveMSolutionVec&
 FiveMomentDGSolver<dim>::get_solution() {
-    return solution.mesh_sol;
+    return solution;
 }
 
 }  // namespace five_moment
