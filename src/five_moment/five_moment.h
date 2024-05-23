@@ -205,6 +205,7 @@ void FiveMomentApp<dim>::setup(WarpiiOpts) {
     grid->reinit();
     solver->reinit();
     solver->project_initial_condition();
+    output_results(0);
 }
 
 template <int dim>
@@ -213,7 +214,8 @@ void FiveMomentApp<dim>::run(WarpiiOpts) {
     auto writeout = [&](double t) -> void {
         output_results(static_cast<unsigned int>(std::round(t / writeout_interval)));
     };
-    TimestepCallback writeout_callback = TimestepCallback(writeout_interval, writeout);
+    // skip the zeroth writeout because we already did that in the setup phase
+    TimestepCallback writeout_callback = TimestepCallback(writeout_interval, writeout, false);
 
     solver->solve(writeout_callback);
 }
