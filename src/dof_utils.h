@@ -13,14 +13,7 @@ namespace warpii {
  * https://www.dealii.org/current/doxygen/deal.II/classFE__DGQ.html
  */
 template <int dim>
-std::vector<unsigned int> pencil_starts(unsigned int, unsigned int ) {
-    //Assert(d < dim, ExcMessage("Specified dimension d must be less than n_dims."));
-    if (dim == 1) {
-        return {0};
-    } else {
-        Assert(false, ExcMessage("Unimplemented"));
-    }
-}
+std::vector<unsigned int> pencil_starts(unsigned int Np, unsigned int q);
 
 /**
  * This function is based on the documentation for the ordering of FE_DGQ

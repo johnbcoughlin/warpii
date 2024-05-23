@@ -104,3 +104,35 @@ end
     warpii_obj.input = input;
     warpii_obj.run();
 }
+
+TEST(InputTest, FreeStreamPseudo2D) {
+    Warpii warpii_obj;
+    std::string input = R"(
+set Application = FiveMoment
+set n_dims = 2
+set t_end = 0.1
+set write_output = false
+
+set fe_degree = 2
+
+subsection geometry
+    set left = 0.0,0.0
+    set right = 1.0,0.02
+    set nx = 100,2
+end
+
+subsection Species_1
+    subsection InitialCondition
+        set Function constants = pi=3.1415926535
+        set Function expression = 1 + 0.6 * sin(2*pi*x); \
+                                  1 + 0.6 * sin(2*pi*x); \
+                                  0.0; \
+                                  0.5 * (1 + 0.6*sin(2*pi*x)) + 1.5
+    end
+end
+    )";
+
+    warpii_obj.opts.fpe = true;
+    warpii_obj.input = input;
+    warpii_obj.run();
+}

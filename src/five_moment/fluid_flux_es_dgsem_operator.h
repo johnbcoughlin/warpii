@@ -111,7 +111,8 @@ class FluidFluxESDGSEMOperator {
         const FEEvaluation<dim, -1, 0, dim + 2, double>& phi_reader,
         const std::vector<double> &quadrature_weights, 
         const FullMatrix<double>& Q,
-        unsigned int d, VectorizedArray<double> alpha) const;
+        unsigned int d, VectorizedArray<double> alpha,
+        bool log=false) const;
 
     std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization;
     double gas_gamma;
@@ -259,42 +260,6 @@ Tensor<1, dim, VectorizedArray<double>> scaled_contravariant_basis_vector(
     return Jdet_j * tensor_column(Jinv_j, d);
 }
 
-/**
- * This function is based on the documentation for the ordering of FE_DGQ
- * DOFs, found here:
- * https://www.dealii.org/current/doxygen/deal.II/classFE__DGQ.html
- */
-template <int dim>
-std::vector<unsigned int> pencil_starts(unsigned int, unsigned int d) {
-    AssertThrow(d < dim,
-                ExcMessage("Specified dimension d must be less than n_dims."));
-    if (dim == 1) {
-        return {0};
-    } else {
-        AssertThrow(false, ExcMessage("Unimplemented"));
-    }
-}
-
-/**
- * This function is based on the documentation for the ordering of FE_DGQ
- * DOFs, found here:
- * https://www.dealii.org/current/doxygen/deal.II/classFE__DGQ.html
- */
-template <int dim>
-unsigned int pencil_stride(unsigned int Np, unsigned int d) {
-    AssertThrow(d < dim,
-                ExcMessage("Specified dimension d must be less than n_dims."));
-    if (d == 0) {
-        return 1;
-    } else if (d == 1) {
-        return Np;
-    } else if (d == 2) {
-        return Np * Np;
-    } else {
-        AssertThrow(false, ExcMessage("n_dims appears to be 4 or more"));
-    }
-}
-
 template <int dim>
 void FluidFluxESDGSEMOperator<dim>::calculate_high_order_EC_flux(
     LinearAlgebra::distributed::Vector<double> &dst,
@@ -302,7 +267,7 @@ void FluidFluxESDGSEMOperator<dim>::calculate_high_order_EC_flux(
     const FEEvaluation<dim, -1, 0, dim + 2, double>& phi_reader,
     const FullMatrix<double>& D, 
     unsigned int d, VectorizedArray<double> alpha,
-    bool log) const {
+    bool /* log */) const {
     unsigned int fe_degree = discretization->get_fe_degree();
     unsigned int Np = fe_degree + 1;
 
@@ -325,13 +290,6 @@ void FluidFluxESDGSEMOperator<dim>::calculate_high_order_EC_flux(
 
             auto ul = phi_reader.get_value(ql);
             double d_jl = D(j, l);
-            if (log) {
-                std::cout << "Jai_j = " << Jai_j << std::endl;
-                std::cout << "Jai_l = " << Jai_l << std::endl;
-                std::cout << "ul = " << ul << std::endl;
-                std::cout << "uj = " << uj << std::endl;
-                std::cout << "d_jl = " << d_jl << std::endl;
-            }
             auto two_pt_flux = euler_CH_EC_flux<dim>(uj, ul, gas_gamma);
             flux_j -= 2.0 * d_jl * two_pt_flux * Jai_avg;
         }
@@ -351,13 +309,14 @@ void FluidFluxESDGSEMOperator<dim>::calculate_first_order_ES_flux(
     const FEEvaluation<dim, -1, 0, dim + 2, double>& phi_reader,
     const std::vector<double> &quadrature_weights, 
     const FullMatrix<double> &Q,
-    unsigned int d, VectorizedArray<double> alpha) const {
+    unsigned int d, VectorizedArray<double> alpha,
+    bool /* log */) const {
     unsigned int fe_degree = discretization->get_fe_degree();
     unsigned int Np = fe_degree + 1;
 
     std::vector<Tensor<1, dim+2, VectorizedArray<double>>> flux_differences(Np);
 
-    unsigned int stride = pencil_stride<dim>(Np, d);
+    unsigned int stride = pencil_stride(Np, d);
     for (unsigned int pencil_start : pencil_starts<dim>(Np, d)) {
         for (unsigned int i = 0; i < Np; i++) {
             for (unsigned int comp = 0; comp < dim+2; comp++) {
@@ -387,12 +346,14 @@ void FluidFluxESDGSEMOperator<dim>::calculate_first_order_ES_flux(
             const auto Jdet_i = jacobian_determinant(phi, qi);
             const auto Jdet_i_plus_1 = jacobian_determinant(phi, qi+stride);
 
+            const auto n_i_iplus1_norm = n_i_iplus1.norm();
+
             // We're going to calculate the numerical flux across the subcell
             // face from subcell i to subcell i+1.
             const auto left_state = phi_reader.get_value(qi);
             const auto right_state = phi_reader.get_value(qi + stride);
             const auto flux_dot_n = euler_CH_entropy_dissipating_flux<dim>(
-                left_state, right_state, n_i_iplus1, gas_gamma);
+                left_state, right_state, n_i_iplus1 / n_i_iplus1_norm, gas_gamma) * n_i_iplus1_norm;
 
             // Perform a face-centered flux difference, so subtract from the
             // left subcell and add to the right subcell. Equation (13) in
@@ -473,8 +434,8 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
             const std::array<VectorizedArray<double>, dim> alphas = shock_indicators(phi_reader, legendre);
 
             for (unsigned int d = 0; d < dim; d++) {
-                const auto alpha = alphas[d];
-                calculate_high_order_EC_flux(dst, phi, phi_reader, D, d, alpha);
+                auto alpha = alphas[d];
+                calculate_high_order_EC_flux(dst, phi, phi_reader, D, d, alpha, false);
                 calculate_first_order_ES_flux(dst, phi, phi_reader, quadrature_weights, Q, d, alpha);
             }
         }

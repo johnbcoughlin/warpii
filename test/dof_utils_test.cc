@@ -48,3 +48,16 @@ TEST(DOFUtilsTest, QuadPoint1DIndexTest) {
     EXPECT_EQ(quad_point_1d_index<2>(4, 3, 1), 1);
     EXPECT_EQ(quad_point_1d_index<2>(1, 3, 1), 0);
 }
+
+TEST(DOFUtilsTest, PencilStartsTest) {
+    EXPECT_EQ(pencil_starts<1>(8, 0).size(), 1);
+    EXPECT_EQ(pencil_starts<1>(8, 0)[0], 0);
+
+    EXPECT_EQ(pencil_starts<2>(3, 0).size(), 3);
+    EXPECT_EQ(pencil_starts<2>(3, 0)[1], 3);
+    EXPECT_EQ(pencil_starts<2>(3, 0)[2], 6);
+
+    EXPECT_EQ(pencil_starts<2>(3, 1).size(), 3);
+    EXPECT_EQ(pencil_starts<2>(3, 1)[1], 1);
+    EXPECT_EQ(pencil_starts<2>(3, 1)[2], 2);
+}

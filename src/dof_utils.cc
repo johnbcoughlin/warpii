@@ -74,4 +74,25 @@ unsigned int quad_point_1d_index<2>(const unsigned int q, const unsigned int Np,
     return c;
 }
 
+template <>
+std::vector<unsigned int> pencil_starts<1>(const unsigned int, const unsigned int) {
+    return {0};
+}
+
+template <>
+std::vector<unsigned int> pencil_starts<2>(const unsigned int Np, const unsigned int d) {
+    std::vector<unsigned int> result;
+    if (d == 0) {
+        for (unsigned int i = 0; i < Np; i++) {
+            result.push_back(i*Np);
+        }
+        return result;
+    } else {
+        for (unsigned int i = 0; i < Np; i++) {
+            result.push_back(i);
+        }
+        return result;
+    }
+}
+
 }
