@@ -36,6 +36,17 @@ class Grid {
 };
 
 template <int dim>
+Point<dim> default_right_point() {
+    if (dim == 1) {
+        return Point<dim>(1.0);
+    } else if (dim == 2) {
+        return Point<dim>(1.0, 1.0);
+    } else {
+        return Point<dim>(1.0, 1.0, 1.0);
+    }
+}
+
+template <int dim>
 void Grid<dim>::declare_parameters(ParameterHandler& prm) {
     using ArrayPattern = Patterns::Tools::Convert<
                               std::array<unsigned int, dim>>;
@@ -48,7 +59,7 @@ void Grid<dim>::declare_parameters(ParameterHandler& prm) {
                           *ArrayPattern::to_pattern());
         Point<dim> pt = Point<dim>();
         prm.declare_entry("left", PointPattern::to_string(pt), *PointPattern::to_pattern());
-        Point<dim> pt1 = Point<dim>(1.0);
+        Point<dim> pt1 = default_right_point<dim>();
         prm.declare_entry("right", PointPattern::to_string(pt1), *PointPattern::to_pattern());
 
         prm.declare_entry("periodic_dimensions", "x,y,z", Patterns::MultipleSelection("x|y|z"));
@@ -83,10 +94,10 @@ void Grid<dim>::reinit() {
         GridTools::collect_periodic_faces(triangulation, 0, 1, 0, matched_pairs);
     }
     if (dim >= 2 && periodic_dims.find("y") != std::string::npos) {
-        GridTools::collect_periodic_faces(triangulation, 2, 3, 0, matched_pairs);
+        GridTools::collect_periodic_faces(triangulation, 2, 3, 1, matched_pairs);
     }
     if (dim >= 3 && periodic_dims.find("z") != std::string::npos) {
-        GridTools::collect_periodic_faces(triangulation, 4, 5, 0, matched_pairs);
+        GridTools::collect_periodic_faces(triangulation, 4, 5, 2, matched_pairs);
     }
     triangulation.add_periodicity(matched_pairs);
 }
