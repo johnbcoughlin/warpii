@@ -416,7 +416,7 @@ void FluidFluxESDGSEMOperator<dim>::calculate_first_order_ES_flux(
         flux_differences[Np-1] += (-alpha * fN / quadrature_weights[Np-1] / Jdet_Np);
 
         for (unsigned int i = 0; i < Np; i++) {
-            phi.submit_value(flux_differences[i], i);
+            phi.submit_value(flux_differences[i], pencil_start + stride * i);
         }
     }
 
