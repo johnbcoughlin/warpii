@@ -17,6 +17,7 @@
 #include "../utilities.h"
 #include "dg_discretization.h"
 #include "euler.h"
+#include "fluxes/subcell_finite_volume_flux.h"
 #include "solution_vec.h"
 #include "species.h"
 #include "fluxes/split_form_volume_flux.h"
@@ -50,7 +51,8 @@ class FluidFluxESDGSEMOperator {
           gas_gamma(gas_gamma),
           n_species(species.size()),
           species(species),
-          split_form_volume_flux(discretization, gas_gamma)
+          split_form_volume_flux(discretization, gas_gamma),
+          subcell_finite_volume_flux(discretization, gas_gamma)
     {}
 
     void perform_forward_euler_step(
@@ -121,6 +123,7 @@ class FluidFluxESDGSEMOperator {
     unsigned int n_species;
     std::vector<std::shared_ptr<Species<dim>>> species;
     SplitFormVolumeFlux<dim> split_form_volume_flux;
+    SubcellFiniteVolumeFlux<dim> subcell_finite_volume_flux;
 };
 
 template <int dim>
@@ -238,144 +241,6 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_inverse_mass_matrix(
 }
 
 template <int dim>
-void FluidFluxESDGSEMOperator<dim>::calculate_high_order_EC_flux(
-    LinearAlgebra::distributed::Vector<double> &dst,
-    FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
-    const FEEvaluation<dim, -1, 0, dim + 2, double> &phi_reader,
-    const FullMatrix<double> &D, unsigned int d, VectorizedArray<double> alpha,
-    bool /* log */) const {
-    unsigned int fe_degree = discretization->get_fe_degree();
-    unsigned int Np = fe_degree + 1;
-
-    for (const unsigned int qj : phi.quadrature_point_indices()) {
-        auto Jdet_j = jacobian_determinant(phi, qj);
-        auto Jai_j = scaled_contravariant_basis_vector(phi, qj, d);
-
-        unsigned int j = quad_point_1d_index<dim>(qj, Np, d);
-        auto uj = phi_reader.get_value(qj);
-        Tensor<1, dim + 2, VectorizedArray<double>> flux_j;
-        for (unsigned int di = 0; di < dim; di++) {
-            flux_j[di] = 0.0;
-        }
-
-        for (unsigned int l = 0; l < Np; l++) {
-            unsigned int ql = quadrature_point_neighbor<dim>(qj, l, Np, d);
-            auto Jai_l = scaled_contravariant_basis_vector(phi, ql, d);
-
-            const auto Jai_avg = 0.5 * (Jai_j + Jai_l);
-
-            auto ul = phi_reader.get_value(ql);
-            double d_jl = D(j, l);
-            auto two_pt_flux = euler_CH_EC_flux<dim>(uj, ul, gas_gamma);
-            flux_j -= 2.0 * d_jl * two_pt_flux * Jai_avg;
-        }
-        phi.submit_value((1.0 - alpha) * flux_j / Jdet_j, qj);
-    }
-
-    // Need to be careful to integrate for each flux dimension d,
-    // otherwise the quadrature point values get overwritten for the next
-    // dimension.
-    phi.integrate_scatter(EvaluationFlags::values, dst);
-}
-
-template <int dim>
-void FluidFluxESDGSEMOperator<dim>::calculate_first_order_ES_flux(
-    LinearAlgebra::distributed::Vector<double> &dst,
-    FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
-    const FEEvaluation<dim, -1, 0, dim + 2, double> &phi_reader,
-    const std::vector<double> &quadrature_weights, const FullMatrix<double> &Q,
-    unsigned int d, VectorizedArray<double> alpha, bool log) const {
-    unsigned int fe_degree = discretization->get_fe_degree();
-    unsigned int Np = fe_degree + 1;
-
-    std::vector<Tensor<1, dim + 2, VectorizedArray<double>>> flux_differences(
-        Np);
-
-    unsigned int stride = pencil_stride(Np, d);
-    for (unsigned int pencil_start : pencil_starts<dim>(Np, d)) {
-        for (unsigned int i = 0; i < Np; i++) {
-            for (unsigned int comp = 0; comp < dim + 2; comp++) {
-                flux_differences[i][comp] = VectorizedArray(0.0);
-            }
-        }
-        Tensor<1, dim, VectorizedArray<double>> n_i_iplus1 =
-            scaled_contravariant_basis_vector(phi, pencil_start, d);
-
-        const auto Jdet_0 = jacobian_determinant(phi, pencil_start);
-        const auto f0 =
-            euler_flux<dim>(phi_reader.get_value(pencil_start), gas_gamma) *
-            n_i_iplus1;
-        flux_differences[0] += alpha * f0 / quadrature_weights[0] / Jdet_0;
-
-        // Index i runs over subcells, and at each subcell we consider the right
-        // face. So should skip the final subcell whose right face is handled by
-        // the usual numerical flux.
-        for (unsigned int i = 0; i < Np - 1; i++) {
-            unsigned int qi = pencil_start + stride * i;
-
-            for (unsigned int m = 0; m < Np; m++) {
-                unsigned int qm = pencil_start + stride * m;
-                Tensor<1, dim, VectorizedArray<double>> Jad_m =
-                    scaled_contravariant_basis_vector(phi, qm, d);
-                n_i_iplus1 += Q(i, m) * Jad_m;
-            }
-
-            const auto Jdet_i = jacobian_determinant(phi, qi);
-            const auto Jdet_i_plus_1 = jacobian_determinant(phi, qi + stride);
-
-            const auto n_i_iplus1_norm = n_i_iplus1.norm();
-
-            // We're going to calculate the numerical flux across the subcell
-            // face from subcell i to subcell i+1.
-            const auto left_state = phi_reader.get_value(qi);
-            const auto right_state = phi_reader.get_value(qi + stride);
-            const auto flux_dot_n =
-                euler_CH_entropy_dissipating_flux<dim>(
-                    left_state, right_state, n_i_iplus1 / n_i_iplus1_norm,
-                    gas_gamma) *
-                n_i_iplus1_norm;
-
-            // Perform a face-centered flux difference, so subtract from the
-            // left subcell and add to the right subcell. Equation (13) in
-            // Henneman et al.
-            flux_differences[i] +=
-                (-alpha * flux_dot_n / quadrature_weights[i] / Jdet_i);
-            flux_differences[i + 1] +=
-                alpha * flux_dot_n / quadrature_weights[i + 1] / Jdet_i_plus_1;
-        }
-
-        // TODO: check that this subcell face normal vector is equal to
-        // Jad_Np.
-        for (unsigned int m = 0; m < Np; m++) {
-            unsigned int qm = pencil_start + stride * m;
-            Tensor<1, dim, VectorizedArray<double>> Jad_m =
-                scaled_contravariant_basis_vector(phi, qm, d);
-            n_i_iplus1 += Q(Np - 1, m) * Jad_m;
-        }
-
-        const auto qNp = pencil_start + stride * (Np - 1);
-        const auto Jdet_Np = jacobian_determinant(phi, qNp);
-        const auto fN =
-            euler_flux<dim>(phi_reader.get_value(qNp), gas_gamma) * n_i_iplus1;
-        flux_differences[Np - 1] +=
-            (-alpha * fN / quadrature_weights[Np - 1] / Jdet_Np);
-
-        if (log) {
-        SHOW(d);
-        }
-        for (unsigned int i = 0; i < Np; i++) {
-            if (log) {
-                SHOW(i);
-                SHOW(flux_differences[i]);
-            }
-            phi.submit_value(flux_differences[i], pencil_start + stride * i);
-        }
-    }
-
-    phi.integrate_scatter(EvaluationFlags::values, dst);
-}
-
-template <int dim>
 void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
     const MatrixFree<dim, double> &mf,
     LinearAlgebra::distributed::Vector<double> &dst,
@@ -428,12 +293,7 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
             //SHOW(alpha);
 
             split_form_volume_flux.calculate_flux(dst, phi, phi_reader, alpha, false);
-            for (unsigned int d = 0; d < dim; d++) {
-                //alpha = 1.0;
-                //calculate_high_order_EC_flux(dst, phi, phi_reader, D, d, alpha, false);
-                calculate_first_order_ES_flux(dst, phi, phi_reader,
-                                              quadrature_weights, Q, d, alpha, cell==0);
-            }
+            subcell_finite_volume_flux.calculate_flux(dst, phi, phi_reader, alpha, false);
         }
     }
 }
