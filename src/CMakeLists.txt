@@ -10,6 +10,7 @@ add_library(libwarpii
     five_moment/solution_vec.cc
     five_moment/species.cc
     fpe.cc
+    utilities.cc
     )
 deal_ii_setup_target(libwarpii)
 
