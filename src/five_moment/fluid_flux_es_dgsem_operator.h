@@ -309,7 +309,7 @@ void FluidFluxESDGSEMOperator<dim>::calculate_first_order_ES_flux(
     FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
     const FEEvaluation<dim, -1, 0, dim + 2, double> &phi_reader,
     const std::vector<double> &quadrature_weights, const FullMatrix<double> &Q,
-    unsigned int d, VectorizedArray<double> alpha, bool /* log */) const {
+    unsigned int d, VectorizedArray<double> alpha, bool log) const {
     unsigned int fe_degree = discretization->get_fe_degree();
     unsigned int Np = fe_degree + 1;
 
@@ -385,7 +385,14 @@ void FluidFluxESDGSEMOperator<dim>::calculate_first_order_ES_flux(
         flux_differences[Np - 1] +=
             (-alpha * fN / quadrature_weights[Np - 1] / Jdet_Np);
 
+        if (log) {
+        SHOW(d);
+        }
         for (unsigned int i = 0; i < Np; i++) {
+            if (log) {
+                SHOW(i);
+                SHOW(flux_differences[i]);
+            }
             phi.submit_value(flux_differences[i], pencil_start + stride * i);
         }
     }
@@ -443,14 +450,13 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
 
             VectorizedArray<double> alpha =
                 shock_indicators(phi_reader, legendre);
-            SHOW(alpha);
+            //SHOW(alpha);
 
             for (unsigned int d = 0; d < dim; d++) {
-                calculate_high_order_EC_flux(dst, phi, phi_reader, D, d, alpha,
-                                             false);
                 alpha = 1.0;
+                //calculate_high_order_EC_flux(dst, phi, phi_reader, D, d, alpha, false);
                 calculate_first_order_ES_flux(dst, phi, phi_reader,
-                                              quadrature_weights, Q, d, alpha);
+                                              quadrature_weights, Q, d, alpha, cell==0);
             }
         }
     }

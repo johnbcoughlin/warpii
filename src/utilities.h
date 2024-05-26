@@ -4,6 +4,11 @@
 #include <vector>
 #include <cstddef>
 
+template <typename T>
+void show_for_debug(T val) {
+    std::cout << val << std::endl;
+}
+
 void show_for_debug(bool val);
 
 void show_for_debug(int val);
