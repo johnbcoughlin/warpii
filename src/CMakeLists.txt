@@ -4,6 +4,7 @@ add_library(libwarpii
     timestepper.cc
     grid.cc
     dof_utils.cc
+    five_moment/dg_discretization.cc
     five_moment/five_moment.cc
     five_moment/solution_vec.cc
     five_moment/species.cc
