@@ -15,7 +15,7 @@ set write_output = false
     //warpii_obj.run();
 }
 
-TEST(InputTest, FreeStream) {
+TEST(InputTest, FreeStream1D) {
     std::string input_template = R"(
 set Application = FiveMoment
 set n_dims = 1
