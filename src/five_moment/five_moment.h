@@ -77,6 +77,8 @@ class FiveMomentApp : public AbstractApp {
 
     FiveMomentDGDiscretization<dim> &get_discretization();
 
+    FiveMomentDGSolver<dim> &get_solver();
+
     FiveMSolutionVec &get_solution();
 
     void output_results(const unsigned int result_number);
@@ -198,6 +200,11 @@ FiveMomentDGDiscretization<dim> &FiveMomentApp<dim>::get_discretization() {
 template <int dim>
 FiveMSolutionVec &FiveMomentApp<dim>::get_solution() {
     return solver->get_solution();
+}
+
+template <int dim>
+FiveMomentDGSolver<dim> &FiveMomentApp<dim>::get_solver() {
+    return *solver;
 }
 
 template <int dim>

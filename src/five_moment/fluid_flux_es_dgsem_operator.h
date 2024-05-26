@@ -19,6 +19,8 @@
 #include "euler.h"
 #include "solution_vec.h"
 #include "species.h"
+#include "fluxes/split_form_volume_flux.h"
+#include "fluxes/jacobian_utils.h"
 
 namespace warpii {
 namespace five_moment {
@@ -47,7 +49,9 @@ class FluidFluxESDGSEMOperator {
         : discretization(discretization),
           gas_gamma(gas_gamma),
           n_species(species.size()),
-          species(species) {}
+          species(species),
+          split_form_volume_flux(discretization, gas_gamma)
+    {}
 
     void perform_forward_euler_step(
         FiveMSolutionVec &dst, const FiveMSolutionVec &u,
@@ -116,6 +120,7 @@ class FluidFluxESDGSEMOperator {
     double gas_gamma;
     unsigned int n_species;
     std::vector<std::shared_ptr<Species<dim>>> species;
+    SplitFormVolumeFlux<dim> split_form_volume_flux;
 };
 
 template <int dim>
@@ -230,36 +235,6 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_inverse_mass_matrix(
             phi.set_dof_values(dst);
         }
     }
-}
-
-template <int dim>
-VectorizedArray<double> jacobian_determinant(
-    const FEEvaluation<dim, -1, 0, dim + 2, double> &phi, unsigned int q) {
-    Tensor<2, dim, VectorizedArray<double>> Jinv_j = phi.inverse_jacobian(q);
-    VectorizedArray<double> Jdet_j = 1.0 / warpii::determinant(Jinv_j);
-    return Jdet_j;
-}
-
-/**
- * Computes the contravariant basis vector Ja^d at the quadrature point q,
- * where d is the dimension index.
- *
- * For details on what we're doing here, see Winters et al. (2020),
- * "Construction of Modern Robust Nodal Discontinuous Galerkin Spectral Element
- * Methods for the Compressible Navier-Stokes Equations", Section 4.3
- *
- * This is equation (172), taking advantage of the fact that
- * `FEEvaluation::inverse_jacobian` returns precisely the matrix whose columns
- * are \vec{a}^i. We then multiply by the Jacobian determinant J.
- */
-template <int dim>
-Tensor<1, dim, VectorizedArray<double>> scaled_contravariant_basis_vector(
-    const FEEvaluation<dim, -1, 0, dim + 2, double> &phi, unsigned int q,
-    unsigned int d) {
-    Tensor<2, dim, VectorizedArray<double>> Jinv_j = phi.inverse_jacobian(q);
-    VectorizedArray<double> Jdet_j = jacobian_determinant(phi, q);
-
-    return Jdet_j * tensor_column(Jinv_j, d);
 }
 
 template <int dim>
@@ -452,8 +427,9 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
                 shock_indicators(phi_reader, legendre);
             //SHOW(alpha);
 
+            split_form_volume_flux.calculate_flux(dst, phi, phi_reader, alpha, false);
             for (unsigned int d = 0; d < dim; d++) {
-                alpha = 1.0;
+                //alpha = 1.0;
                 //calculate_high_order_EC_flux(dst, phi, phi_reader, D, d, alpha, false);
                 calculate_first_order_ES_flux(dst, phi, phi_reader,
                                               quadrature_weights, Q, d, alpha, cell==0);

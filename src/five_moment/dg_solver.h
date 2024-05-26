@@ -54,6 +54,10 @@ class FiveMomentDGSolver {
 
     FiveMSolutionVec& get_solution();
 
+    FluidFluxESDGSEMOperator<dim>& get_fluid_flux_operator() {
+        return fluid_flux_operator;
+    }
+
    private:
     double t_end;
     std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization;
