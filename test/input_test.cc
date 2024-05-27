@@ -15,7 +15,7 @@ set write_output = false
     //warpii_obj.run();
 }
 
-TEST(InputTest, FreeStream) {
+TEST(InputTest, FreeStream1D) {
     std::string input_template = R"(
 set Application = FiveMoment
 set n_dims = 1
@@ -128,6 +128,42 @@ subsection Species_1
                                   1 + 0.6 * sin(2*pi*x); \
                                   0.0; \
                                   0.5 * (1 + 0.6*sin(2*pi*x)) + 1.5
+    end
+end
+    )";
+
+    warpii_obj.opts.fpe = true;
+    warpii_obj.input = input;
+    warpii_obj.run();
+}
+
+TEST(InputTest, FreeStream2DDiagonal) {
+    int argc = 0;
+    char** argv = nullptr;
+    Utilities::MPI::MPI_InitFinalize mpi_initialization(argc, argv, 1);
+
+    Warpii warpii_obj;
+    std::string input = R"(
+set Application = FiveMoment
+set n_dims = 2
+set t_end = 0.1
+set fields_enabled = false
+
+set fe_degree = 3
+
+subsection geometry
+    set left = 0.0,0.0
+    set right = 1.0,1.0
+    set nx = 20,20
+end
+
+subsection Species_1
+    subsection InitialCondition
+        set Function constants = pi=3.1415926535
+        set Function expression = 1 + 0.6 * sin(2*pi*(x+y)); \
+                                  1 + 0.6 * sin(2*pi*(x+y)); \
+                                  1 + 0.6 * sin(2*pi*(x+y)); \
+                                  0.5 * 2*(1 + 0.6*sin(2*pi*(x+y))) + 1.5
     end
 end
     )";

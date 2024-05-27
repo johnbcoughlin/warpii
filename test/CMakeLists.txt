@@ -15,6 +15,7 @@ set(TEST_SOURCES
     euler_test.cc
     conservation_test.cc
     dof_utils_test.cc
+    shock_capturing_fv_test.cc
     # Add more test files here as needed
 )
 
