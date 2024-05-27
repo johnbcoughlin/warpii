@@ -52,7 +52,7 @@ class FluidFluxESDGSEMOperator {
           n_species(species.size()),
           species(species),
           split_form_volume_flux(discretization, gas_gamma),
-          subcell_finite_volume_flux(discretization, gas_gamma)
+          subcell_finite_volume_flux(*discretization, gas_gamma)
     {}
 
     void perform_forward_euler_step(
@@ -290,7 +290,6 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
 
             VectorizedArray<double> alpha =
                 shock_indicators(phi_reader, legendre);
-            //SHOW(alpha);
 
             split_form_volume_flux.calculate_flux(dst, phi, phi_reader, alpha, false);
             subcell_finite_volume_flux.calculate_flux(dst, phi, phi_reader, alpha, false);
@@ -594,7 +593,7 @@ VectorizedArray<double> FluidFluxESDGSEMOperator<dim>::shock_indicators(
         double T = 0.5 * std::pow(10.0, -1.8 * std::pow(Np, 0.25));
         double s = 9.21024;
         double alpha = 1.0 / (1.0 + std::exp(-s / T * (E - T)));
-        double alpha_max = 1.0;
+        double alpha_max = 0.5;
 
         if (alpha < 1e-3) {
             alpha = 0.0;
