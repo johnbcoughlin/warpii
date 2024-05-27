@@ -150,13 +150,15 @@ std::unique_ptr<FiveMomentApp<dim>> FiveMomentApp<dim>::create_from_parameters(
     unsigned int n_species = prm.get_integer("n_species");
     unsigned int n_boundaries = prm.get_integer("n_boundaries");
 
+    double gas_gamma = prm.get_double("gas_gamma");
+
     std::vector<std::shared_ptr<Species<dim>>> species;
     for (unsigned int i = 0; i < n_species; i++) {
         std::stringstream subsection_name;
         subsection_name << "Species_" << i + 1;
         prm.enter_subsection(subsection_name.str());
         species.push_back(
-            Species<dim>::create_from_parameters(prm, n_boundaries));
+            Species<dim>::create_from_parameters(prm, n_boundaries, gas_gamma));
         prm.leave_subsection();
     }
 
@@ -168,7 +170,6 @@ std::unique_ptr<FiveMomentApp<dim>> FiveMomentApp<dim>::create_from_parameters(
 
     unsigned int n_field_components = fields_enabled ? 8 : 0;
     unsigned int n_components = n_species * (dim + 2) + n_field_components;
-    double gas_gamma = prm.get_double("gas_gamma");
     double t_end = prm.get_double("t_end");
     bool write_output = prm.get_bool("write_output");
     unsigned int n_writeout_frames = prm.get_integer("n_writeout_frames");

@@ -1,4 +1,6 @@
 #include "species.h"
+#include "species_func.h"
+#include <deal.II/base/patterns.h>
 
 namespace warpii {
 namespace five_moment {
@@ -24,13 +26,13 @@ void Species<dim>::declare_parameters(ParameterHandler &prm,
     }
     prm.leave_subsection();  // BoundaryConditions
     prm.enter_subsection("InitialCondition");
-    Functions::ParsedFunction<dim>::declare_parameters(prm, dim + 2);
+    SpeciesFunc<dim>::declare_parameters(prm);
     prm.leave_subsection();
 }
 
 template <int dim>
 std::shared_ptr<Species<dim>> Species<dim>::create_from_parameters(
-    ParameterHandler &prm, unsigned int n_boundaries) {
+    ParameterHandler &prm, unsigned int n_boundaries, double gas_gamma) {
     std::string name = prm.get("name");
     double charge = prm.get_double("charge");
     double mass = prm.get_double("mass");
@@ -59,9 +61,7 @@ std::shared_ptr<Species<dim>> Species<dim>::create_from_parameters(
     }
     prm.leave_subsection();
     prm.enter_subsection("InitialCondition");
-    std::unique_ptr<Functions::ParsedFunction<dim>> initial_condition =
-        std::make_unique<Functions::ParsedFunction<dim>>(dim + 2);
-    initial_condition->parse_parameters(prm);
+    SpeciesFunc<dim> initial_condition = SpeciesFunc<dim>::create_from_parameters(prm, gas_gamma);
     prm.leave_subsection();
 
     return std::make_shared<Species<dim>>(name, charge, mass, bc_map,
