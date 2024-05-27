@@ -17,10 +17,10 @@ end
 
 subsection Species_1
     subsection InitialCondition
-        set Function constants = gamma=1.66667
+        set VariablesType = Primitive
         set Function expression = if(x < 0.5, 1.0, 0.10); \
                                   0.0; \
-                                  if(x < 0.5, 1.0, 0.125) / (gamma - 1)
+                                  if(x < 0.5, 1.0, 0.125)
     end
 
     subsection BoundaryConditions

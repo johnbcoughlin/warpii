@@ -17,11 +17,11 @@ end
 
 subsection Species_1
     subsection InitialCondition
-        set Function constants = gamma=1.66667,rhoL=3.857,uL=2.629,pL=10.333
+        set VariablesType = Primitive
+        set Function constants = rhoL=3.857,uL=2.629,pL=10.333
         set Function expression = if(x < -4.0, rhoL, 1 + 0.2*sin(5*x)); \
-                                  if(x < -4.0, rhoL*uL, 0.0); \
-                                  if(x < -4.0, 0.5 * (rhoL*uL*uL) + pL / (gamma - 1), \
-                                               1.0 / (gamma - 1))
+                                  if(x < -4.0, uL, 0.0); \
+                                  if(x < -4.0, pL, 1.0)
     end
 
     subsection BoundaryConditions

@@ -11,6 +11,7 @@
 #include <string>
 
 #include "bc_helper.h"
+#include "species_func.h"
 
 using namespace dealii;
 
@@ -23,7 +24,8 @@ template <int dim>
 class Species {
    public:
     Species(std::string name, double charge, double mass,
-            EulerBCMap<dim> bc_map, std::unique_ptr<Functions::ParsedFunction<dim>> initial_condition)
+            EulerBCMap<dim> bc_map, 
+            SpeciesFunc<dim> initial_condition)
         : name(name),
           charge(charge),
           mass(mass),
@@ -34,7 +36,7 @@ class Species {
                                    unsigned int n_boundaries);
 
     static std::shared_ptr<Species<dim>> create_from_parameters(
-        ParameterHandler &prm, unsigned int n_boundaries);
+        ParameterHandler &prm, unsigned int n_boundaries, double gas_gamma);
 
    private:
 
@@ -43,7 +45,7 @@ class Species {
     double charge;
     double mass;
     EulerBCMap<dim> bc_map;
-    std::unique_ptr<Functions::ParsedFunction<dim>> initial_condition;
+    SpeciesFunc<dim> initial_condition;
 };
 
 }  // namespace five_moment
