@@ -10,6 +10,13 @@
 namespace warpii {
 using namespace dealii;
 
-using Tint = std::tuple<unsigned int, unsigned int, unsigned int>;
+void GridWrapper::declare_parameters(ParameterHandler& prm) {
+    prm.enter_subsection("geometry");
+    prm.declare_entry("GridType", "HyperRectangle",
+                      Patterns::Selection("HyperRectangle|HyperL"),
+                      "The type of GridDescription whose parameters are "
+                      "supplied in this section.");
+    prm.leave_subsection();
+}
 
 }  // namespace warpii

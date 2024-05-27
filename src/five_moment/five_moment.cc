@@ -16,6 +16,7 @@ R"(The number of dimensions in the problem.
     )");
     prm.declare_entry("n_species", "1", Patterns::Integer());
     prm.declare_entry("n_boundaries", "0", Patterns::Integer());
+    GridWrapper::declare_parameters(prm);
 }
 
 std::unique_ptr<AbstractApp> FiveMomentWrapper::create_app(

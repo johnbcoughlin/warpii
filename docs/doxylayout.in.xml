@@ -3,5 +3,20 @@
     <tab type="mainpage" visible="yes" title="About"/>
     <tab type="user" url="@ref install" title="Installation instructions"/>
     <tab type="user" url="@ref first_simulation" title="Running a simple simulation"/>
+
+    <tab type="usergroup" title="The Code" url="">
+      <!-- <tab type="pages" visible="no" title="" intro=""/> -->
+      <!-- <tab type="modules" visible="yes" title="" intro=""/> -->
+      <tab type="namespaces" visible="yes" title="Namespaces">
+        <tab type="namespacelist" visible="yes" title="" intro=""/>
+        <tab type="namespacemembers" visible="yes" title="" intro=""/>
+      </tab>
+    <tab type="classes" visible="yes" title="Classes">
+      <tab type="classlist" visible="yes" title="" intro=""/>
+      <tab type="classindex" visible="$ALPHABETICAL_INDEX" title=""/> 
+      <tab type="hierarchy" visible="yes" title="" intro=""/>
+      <tab type="classmembers" visible="yes" title="" intro=""/>
+    </tab>
+    </tab>
 </navindex>
 </doxygenlayout>

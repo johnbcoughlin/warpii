@@ -1,7 +1,12 @@
 PROJECT_NAME = WarpII
 PROJECT_NUMBER = v0.1
 
-INPUT = README.md docs/ src/
+INPUT = README.md \
+        @PROJECT_SOURCE_DIR@/docs \
+        @PROJECT_SOURCE_DIR@/src
+
+STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
+                         @PROJECT_BINARY_DIR@
 
 FILE_PATTERNS = *.h *.md
 
@@ -15,3 +20,6 @@ LAYOUT_FILE            = doxylayout.xml
 
 HTML_EXTRA_STYLESHEET = docs/style.css
 HTML_COLORSTYLE        = LIGHT
+
+SEARCHENGINE = YES
+SERVER_BASED_SEARCH = NO
