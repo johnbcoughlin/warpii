@@ -1,9 +1,9 @@
 set Application = FiveMoment
 set n_dims = 2
-set t_end = 0.01
+set t_end = 0.3
 set fields_enabled = false
 
-set fe_degree = 2
+set fe_degree = 3
 
 subsection geometry
     set left = 0.0,0.0
