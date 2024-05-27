@@ -6,9 +6,8 @@ set fields_enabled = false
 set fe_degree = 2
 
 subsection geometry
-    set left = 0.0,0.0
-    set right = 1.0,0.1
-    set nx = 100,2
+    set GridType = ForwardFacingStep
+    set RefinementFactor = 6
 end
 
 subsection Species_1

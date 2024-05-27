@@ -49,9 +49,12 @@ void Grid<dim>::declare_parameters(ParameterHandler& prm) {
     using PointPattern = Patterns::Tools::Convert<Point<dim>>;
     prm.enter_subsection("geometry");
     std::string grid_type = prm.get("GridType");
-    if (grid_type == "HyperRectangle")
-    {
+    if (grid_type == "HyperRectangle") {
         HyperRectangleDescription<dim>::declare_parameters(prm);
+    } else if (grid_type == "ForwardFacingStep") {
+        ForwardFacingStepDescription<dim>::declare_parameters(prm);
+    } else {
+        Assert(false, ExcMessage("No declaration for grid type"));
     }
     prm.leave_subsection();  // geometry
 }
@@ -66,6 +69,9 @@ std::shared_ptr<Grid<dim>> Grid<dim>::create_from_parameters(
     {
          result = std::make_shared<Grid<dim>>(
                 HyperRectangleDescription<dim>::create_from_parameters(prm));
+    } else if (grid_type == "ForwardFacingStep") {
+        result = std::make_shared<Grid<dim>>(
+                ForwardFacingStepDescription<dim>::create_from_parameters(prm));
     }
     prm.leave_subsection();  // geometry
     return result;

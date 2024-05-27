@@ -5,7 +5,45 @@
 using namespace dealii;
 namespace warpii {
 
-template <int dim> Point<dim> default_right_point();
+template <int dim>
+Point<dim> default_right_point();
+
+/**
+ * Declare a pair of Point<dim> parameters named "left" and "right"
+ */
+template <int dim>
+void declare_left_right(ParameterHandler& prm) {
+    using PointPattern = Patterns::Tools::Convert<Point<dim>>;
+    Point<dim> pt = Point<dim>();
+    prm.declare_entry("left", PointPattern::to_string(pt),
+                      *PointPattern::to_pattern());
+    Point<dim> pt1 = default_right_point<dim>();
+    prm.declare_entry("right", PointPattern::to_string(pt1),
+                      *PointPattern::to_pattern());
+}
+
+/**
+ * Declare a std::array<unsigned int, dim> parameter named "nx"
+ */
+template <int dim>
+void declare_nx(ParameterHandler& prm) {
+    using ArrayPattern =
+        Patterns::Tools::Convert<std::array<unsigned int, dim>>;
+    std::array<unsigned int, dim> default_nx;
+    default_nx.fill(1);
+    prm.declare_entry("nx", ArrayPattern::to_string(default_nx),
+                      *ArrayPattern::to_pattern());
+}
+
+template <int dim>
+void declare_int_array(ParameterHandler &prm, std::string name) {
+    using ArrayPattern =
+        Patterns::Tools::Convert<std::array<int, dim>>;
+    std::array<int, dim> default_val;
+    default_val.fill(0);
+    prm.declare_entry(name, ArrayPattern::to_string(default_val),
+                      *ArrayPattern::to_pattern());
+}
 
 /**
  * A description of a grid to be generated.
@@ -14,41 +52,40 @@ template <int dim> Point<dim> default_right_point();
  *
  * Many of the subclasses of GridDescription contain parameters required
  * to form calls to one of the GridGenerators provided by deal.II.
- * See [the GridGenerators documentation](https://www.dealii.org/developer/doxygen/deal.II/namespaceGridGenerator.html)
+ * See [the GridGenerators
+ * documentation](https://www.dealii.org/developer/doxygen/deal.II/namespaceGridGenerator.html)
  * for examples.
  */
 template <int dim>
 class GridDescription {
-    public:
-        virtual ~GridDescription() = default;
+   public:
+    virtual ~GridDescription() = default;
 
-        /**
-         * Reinitialize the given triangulation with the current description.
-         * This likely involves making a call to a [GridGenerator](https://www.dealii.org/developer/doxygen/deal.II/namespaceGridGenerator.html)
-         * with the stored parameters.
-         */
-        virtual void reinit(Triangulation<dim>& tri);
+    /**
+     * Reinitialize the given triangulation with the current description.
+     * This likely involves making a call to a
+     * [GridGenerator](https://www.dealii.org/developer/doxygen/deal.II/namespaceGridGenerator.html)
+     * with the stored parameters.
+     */
+    virtual void reinit(Triangulation<dim>& tri);
 };
 
 /**
- * Description of a deal.II [subdivided_hyper_rectangle](https://www.dealii.org/developer/doxygen/deal.II/namespaceGridGenerator.html#ac76417d7404b75cf53c732f456e6e971) call
+ * Description of a deal.II
+ * [subdivided_hyper_rectangle](https://www.dealii.org/developer/doxygen/deal.II/namespaceGridGenerator.html#ac76417d7404b75cf53c732f456e6e971)
+ * call
  */
 template <int dim>
 class HyperRectangleDescription : public GridDescription<dim> {
    public:
-    HyperRectangleDescription(
-    std::array<unsigned int, dim> nx,
-    Point<dim> left,
-    Point<dim> right,
-    std::string periodic_dims):
-        nx(nx), left(left), right(right),
-        periodic_dims(periodic_dims)
-    {}
+    HyperRectangleDescription(std::array<unsigned int, dim> nx, Point<dim> left,
+                              Point<dim> right, std::string periodic_dims)
+        : nx(nx), left(left), right(right), periodic_dims(periodic_dims) {}
 
     static void declare_parameters(ParameterHandler& prm);
 
-    static std::unique_ptr<HyperRectangleDescription<dim>> create_from_parameters(
-        ParameterHandler& prm);
+    static std::unique_ptr<HyperRectangleDescription<dim>>
+    create_from_parameters(ParameterHandler& prm);
 
     void reinit(Triangulation<dim>& tri) override;
 
@@ -59,12 +96,23 @@ class HyperRectangleDescription : public GridDescription<dim> {
     std::string periodic_dims;
 };
 
+/**
+ */
 template <int dim>
-class HyperLDescription {
+class ForwardFacingStepDescription : public GridDescription<dim> {
    public:
+    ForwardFacingStepDescription(unsigned int refinement_factor)
+        : refinement_factor(refinement_factor) {}
+
     static void declare_parameters(ParameterHandler& prm);
 
-    static HyperLDescription<dim> create_from_parameters(ParameterHandler& prm);
+    static std::unique_ptr<ForwardFacingStepDescription<dim>> create_from_parameters(
+        ParameterHandler& prm);
+
+    void reinit(Triangulation<dim>& tri) override;
+
+   private:
+    unsigned int refinement_factor;
 };
 
 }  // namespace warpii
