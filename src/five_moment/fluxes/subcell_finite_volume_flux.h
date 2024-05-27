@@ -28,18 +28,18 @@ template <int dim>
 class SubcellFiniteVolumeFlux {
    public:
     SubcellFiniteVolumeFlux(
-        std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization,
+        FiveMomentDGDiscretization<dim>& discretization,
         double gas_gamma)
-        : Np(discretization->get_fe_degree() + 1),
+        : Np(discretization.get_fe_degree() + 1),
           gas_gamma(gas_gamma),
           Q(Np, Np) {
         FEValues<dim> fe_values(
-            discretization->get_mapping(), discretization->get_fe(),
+            discretization.get_mapping(), discretization.get_fe(),
             QGaussLobatto<dim>(Np), UpdateFlags::update_values);
 
+        Quadrature<1> quad = QGaussLobatto<1>(Np);
         for (unsigned int i = 0; i < Np; i++) {
-            quadrature_weights.push_back(
-                fe_values.get_quadrature().get_weights().at(i));
+            quadrature_weights.push_back(quad.get_weights().at(i));
         }
 
         FullMatrix<double> D(Np, Np);
@@ -70,7 +70,8 @@ void SubcellFiniteVolumeFlux<dim>::calculate_flux(
     LinearAlgebra::distributed::Vector<double> &dst,
     FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
     const FEEvaluation<dim, -1, 0, dim + 2, double> &phi_reader,
-    VectorizedArray<double> alpha, bool log) const {
+    VectorizedArray<double> alpha, bool /* log */) const {
+
     for (unsigned int d = 0; d < dim; d++) {
         std::vector<Tensor<1, dim + 2, VectorizedArray<double>>>
             flux_differences(Np);
@@ -147,14 +148,7 @@ void SubcellFiniteVolumeFlux<dim>::calculate_flux(
             flux_differences[Np - 1] +=
                 (-alpha * fN / quadrature_weights[Np - 1] / Jdet_Np);
 
-            if (log) {
-                SHOW(d);
-            }
             for (unsigned int i = 0; i < Np; i++) {
-                if (log) {
-                    SHOW(i);
-                    SHOW(flux_differences[i]);
-                }
                 phi.submit_value(flux_differences[i],
                                  pencil_start + stride * i);
             }
