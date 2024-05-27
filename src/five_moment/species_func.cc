@@ -31,7 +31,7 @@ double SpeciesFunc<dim>::value(const Point<dim> &pt,
 
 template <int dim>
 void SpeciesFunc<dim>::declare_parameters(ParameterHandler& prm) {
-    prm.declare_entry("VariablesType", "Conserved", Patterns::Selection("Primitive|Conserved"));
+    prm.declare_entry("VariablesType", "Primitive", Patterns::Selection("Primitive|Conserved"));
     Functions::ParsedFunction<dim>::declare_parameters(prm, dim + 2);
 }
 

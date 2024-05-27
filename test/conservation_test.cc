@@ -21,10 +21,9 @@ end
 
 subsection Species_1
     subsection InitialCondition
+        set VariablesType = Primitive
         set Function constants = pi=3.1415926535
-        set Function expression = 1.4 + 0.6 * sin(2*pi*x);\
-                                  0.98 + 0.6 * sin(2*pi*x);\
-                                  0.5 * (1 + 0.6*sin(2*pi*x)) + 1.5
+        set Function expression = 1.4 + 0.6 * sin(2*pi*x); 0.98; 1.0
     end
 end
     )";
@@ -40,7 +39,7 @@ end
 
     auto ic_global_integral = disc.compute_global_integral(soln.mesh_sol, 0);
     EXPECT_NEAR(ic_global_integral[0], 1.4, 1e-15);
-    EXPECT_NEAR(ic_global_integral[1], 0.98, 1e-15);
+    EXPECT_NEAR(ic_global_integral[1], 0.98 * 1.4, 1e-15);
 }
 
 TEST(ConservationTest, Periodic1D) {
@@ -60,9 +59,7 @@ end
 subsection Species_1
     subsection InitialCondition
         set Function constants = pi=3.1415926535
-        set Function expression = 1 + 0.6 * sin(2*pi*x);\
-                                  1 + 0.6 * sin(2*pi*x);\
-                                  0.5 * (1 + 0.6*sin(2*pi*x)) + 1.5
+        set Function expression = 1 + 0.6 * sin(2*pi*x); 1.0; 1.0
     end
 end
     )";
