@@ -211,6 +211,9 @@ FiveMomentDGSolver<dim> &FiveMomentApp<dim>::get_solver() {
 template <int dim>
 void FiveMomentApp<dim>::setup(WarpiiOpts) {
     grid->reinit();
+    if (dim == 2) {
+        grid->output_svg("grid.svg");
+    }
     solver->reinit();
     solver->project_initial_condition();
     output_results(0);

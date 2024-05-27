@@ -7,7 +7,10 @@
 #include <deal.II/grid/tria.h>
 #include <deal.II/distributed/tria.h>
 #include <deal.II/grid/grid_tools.h>
+#include <deal.II/grid/grid_out.h>
 #include <memory>
+#include <fstream>
+#include <iostream>
 
 namespace warpii {
 using namespace dealii;
@@ -27,6 +30,8 @@ class Grid {
     void reinit();
 
     Triangulation<dim> triangulation;
+
+    void output_svg(std::string filename);
 
    private:
     Point<dim> left;
@@ -100,6 +105,13 @@ void Grid<dim>::reinit() {
         GridTools::collect_periodic_faces(triangulation, 4, 5, 2, matched_pairs);
     }
     triangulation.add_periodicity(matched_pairs);
+}
+
+template <int dim>
+void Grid<dim>::output_svg(std::string filename) {
+    std::ofstream out(filename);
+    GridOut grid_out;
+    grid_out.write_svg(triangulation, out);
 }
 
 }  // namespace warpii
