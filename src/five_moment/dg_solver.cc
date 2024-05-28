@@ -24,12 +24,15 @@ void FiveMomentDGSolver<dim>::solve(TimestepCallback writeout_callback) {
     auto step = [&](double t, double dt) -> bool {
         ssp_integrator.evolve_one_time_step(fluid_flux_operator, solution, dt,
                                             t);
+
+        std::cout << "t = " << t << std::endl;
         return true;
     };
     auto recommend_dt = [&]() -> double {
         return fluid_flux_operator.recommend_dt(
             discretization->get_matrix_free(), solution);
     };
+
     std::vector<TimestepCallback> callbacks = {writeout_callback};
     advance(step, t_end, recommend_dt, callbacks);
 }

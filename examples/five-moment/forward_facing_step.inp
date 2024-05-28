@@ -1,20 +1,24 @@
 set Application = FiveMoment
 set n_dims = 2
-set t_end = 0.100
+set t_end = 3.000
 set fields_enabled = false
 
 set fe_degree = 2
 
+set n_boundaries = 6
 subsection geometry
     set GridType = ForwardFacingStep
-    set RefinementFactor = 1
+    set RefinementFactor = 3
 end
+
+set gas_gamma = 1.4
+
+set n_writeout_frames = 100
 
 subsection Species_1
     subsection InitialCondition
         set VariablesType = Primitive
-        set Function constants = pi=3.1415926535
-        set Function expression = 1 + 0.6 * sin(2*pi*x); 1.0; 0.0; 1.0
+        set Function expression = 1.4; 3.0; 0.0; 1.0
     end
 
     subsection BoundaryConditions
@@ -24,11 +28,10 @@ subsection Species_1
         set 3 = Wall
         set 4 = Outflow
         set 5 = Wall
-    end
 
-    subsection 0_Inflow
-        set VariablesType = Primitive
-        set Function constants = 
-        set Function expression = 
+        subsection 0_Inflow
+            set VariablesType = Primitive
+            set Function expression = 1.4; 3.0; 0.0; 1.0
+        end
     end
 end
