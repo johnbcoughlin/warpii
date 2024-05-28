@@ -36,7 +36,7 @@ void SpeciesFunc<dim>::declare_parameters(ParameterHandler& prm) {
 }
 
 template <int dim>
-SpeciesFunc<dim> SpeciesFunc<dim>::create_from_parameters(ParameterHandler& prm, double gas_gamma) {
+std::unique_ptr<SpeciesFunc<dim>> SpeciesFunc<dim>::create_from_parameters(ParameterHandler& prm, double gas_gamma) {
     std::string str = prm.get("VariablesType");
     SpeciesFuncVariablesType variables_type;
     if (str == "Primitive") {
@@ -47,9 +47,7 @@ SpeciesFunc<dim> SpeciesFunc<dim>::create_from_parameters(ParameterHandler& prm,
     std::unique_ptr<Functions::ParsedFunction<dim>> func =
         std::make_unique<Functions::ParsedFunction<dim>>(dim + 2);
     func->parse_parameters(prm);
-    return SpeciesFunc<dim>(std::move(func),
-            variables_type,
-            gas_gamma);
+    return std::make_unique<SpeciesFunc<dim>>(std::move(func), variables_type, gas_gamma);
 }
 
 template class SpeciesFunc<1>;

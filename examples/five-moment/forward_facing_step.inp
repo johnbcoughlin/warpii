@@ -7,7 +7,7 @@ set fe_degree = 2
 
 subsection geometry
     set GridType = ForwardFacingStep
-    set RefinementFactor = 6
+    set RefinementFactor = 1
 end
 
 subsection Species_1
@@ -15,5 +15,20 @@ subsection Species_1
         set VariablesType = Primitive
         set Function constants = pi=3.1415926535
         set Function expression = 1 + 0.6 * sin(2*pi*x); 1.0; 0.0; 1.0
+    end
+
+    subsection BoundaryConditions
+        set 0 = Inflow
+        set 1 = Wall
+        set 2 = Wall
+        set 3 = Wall
+        set 4 = Outflow
+        set 5 = Wall
+    end
+
+    subsection 0_Inflow
+        set VariablesType = Primitive
+        set Function constants = 
+        set Function expression = 
     end
 end
