@@ -29,7 +29,11 @@ class FiveMomentDGDiscretization {
           grid(grid),
           mapping(fe_degree),
           fe(FE_DGQ<dim>(fe_degree) ^ (n_components)),
-          dof_handler(grid->triangulation) {}
+          dof_handler(grid->triangulation),
+          fe_values(mapping, fe, QGaussLobatto<dim>(fe_degree+1), UpdateFlags::update_values),
+          dummy_fe_collection(fe.base_element(0)),
+          dummy_q_collection(fe_values.get_quadrature())
+    {}
 
     void reinit();
 
@@ -72,6 +76,12 @@ class FiveMomentDGDiscretization {
     MatrixFree<dim>& get_matrix_free() {
         return mf;
     }
+    hp::FECollection<dim>& get_dummy_fe_collection() {
+        return dummy_fe_collection;
+    }
+    hp::QCollection<dim>& get_dummy_q_collection() {
+        return dummy_q_collection;
+    }
 
     void build_data_out_patches(DataOut<dim>& data_out) {
         data_out.build_patches(mapping, fe.degree, DataOut<dim>::curved_inner_cells);
@@ -84,6 +94,9 @@ class FiveMomentDGDiscretization {
     MappingQ<dim> mapping;
     FESystem<dim> fe;
     DoFHandler<dim> dof_handler;
+    FEValues<dim> fe_values;
+    hp::FECollection<dim> dummy_fe_collection;
+    hp::QCollection<dim> dummy_q_collection;
    public:
     MatrixFree<dim> mf;
 };
