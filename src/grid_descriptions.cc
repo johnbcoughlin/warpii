@@ -1,4 +1,5 @@
 #include "grid_descriptions.h"
+#include "utilities.h"
 #include "grid_generation.h"
 
 #include <deal.II/base/patterns.h>
@@ -6,6 +7,7 @@
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/tria.h>
+#include <limits>
 
 using namespace dealii;
 
@@ -165,6 +167,35 @@ void ForwardFacingStepDescription<2>::reinit(
     }
     GridGenerator::create_triangulation_with_removed_cells(
             rectangular_tria, cells_to_remove, triangulation);
+
+    double tol = std::sqrt(std::numeric_limits<double>::epsilon());
+    for (const auto &cell : triangulation.active_cell_iterators()) {
+        for (const unsigned int face_n : GeometryInfo<2>::face_indices()) {
+            const auto face = cell->face(face_n);
+            if (!face->at_boundary()) {
+                continue;
+            }
+            if (std::abs(face->center()[0]) < tol) {
+                // Left
+                face->set_boundary_id(0);
+            } else if (std::abs(face->center()[1]) < tol) {
+            // Bottom
+                face->set_boundary_id(1);
+            } else if (std::abs(face->center()[0] - 3*dx) < tol && face->center()[1] < dy) {
+            // Corner left leg
+                face->set_boundary_id(2);
+            } else if (std::abs(face->center()[1] - dy) < tol && face->center()[0] > 3*dx) {
+            // Corner long leg
+                face->set_boundary_id(3);
+            } else if (std::abs(face->center()[0] - Lx) < tol) {
+                // Right
+                face->set_boundary_id(4);
+            } else if (std::abs(face->center()[1] - Ly) < tol) {
+                // Top
+                face->set_boundary_id(5);
+            }
+        }
+    }
 }
 
 template class ForwardFacingStepDescription<1>;

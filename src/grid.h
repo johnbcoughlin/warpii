@@ -86,6 +86,9 @@ template <int dim>
 void Grid<dim>::output_svg(std::string filename) {
     std::ofstream out(filename);
     GridOut grid_out;
+    GridOutFlags::Svg flags;
+    flags.label_boundary_id = true;
+    grid_out.set_flags(flags);
     grid_out.write_svg(triangulation, out);
 }
 
