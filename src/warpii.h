@@ -49,4 +49,8 @@ class Warpii {
     bool run_complete;
 };
 
+std::string format_workdir(
+        const ParameterHandler& prm,
+        const WarpiiOpts& opts);
+
 }  // namespace warpii

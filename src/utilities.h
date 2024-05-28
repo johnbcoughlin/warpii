@@ -30,3 +30,15 @@ void show_for_debug(const dealii::VectorizedArray<double>& val);
     std::cout << #varname << " = ";                                                      \
     show_for_debug(varname);
 #endif
+
+/**
+ * Remove the file extension from a filename.
+ *
+ * Removes up to the final period. So:
+ *     - "foo.inp" will become "foo".
+ *     - "foo.2.inp" will become "foo.2".
+ *     - "examples/foo/foo.inp" will become "foo.inp"
+ */
+std::string remove_file_extension(std::string filename);
+
+void create_and_move_to_subdir(const std::string subdir);

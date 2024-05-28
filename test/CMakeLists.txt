@@ -16,6 +16,7 @@ set(TEST_SOURCES
     conservation_test.cc
     dof_utils_test.cc
     shock_capturing_fv_test.cc
+    utilities_test.cc
     # Add more test files here as needed
 )
 
