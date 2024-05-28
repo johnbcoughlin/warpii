@@ -116,3 +116,17 @@ void SSPRK2Integrator<Number, SolutionVec, Operator>::reinit(
     }
 }
 
+
+template <typename SolutionVec, typename Operator>
+class KennedyCarpenter45 {
+    public:
+        KennedyCarpenter45() {}
+
+        void evolve_one_time_step(Operator& op,
+                SolutionVec& solution,
+                const double dt,
+                const double t);
+
+    private:
+        SolutionVec
+};
