@@ -16,15 +16,14 @@ set fe_degree = 2
 subsection geometry
     set left = 0.0
     set right = 1.0
-    set nx = 10
+    set nx = 50
 end
 
 subsection Species_1
     subsection InitialCondition
+        set VariablesType = Primitive
         set Function constants = pi=3.1415926535
-        set Function expression = 1 + 0.6 * sin(2*pi*x); \
-                                  1 + 0.6 * sin(2*pi*x); \
-                                  0.5 * (1 + 0.6*sin(2*pi*x)) + 1.5
+        set Function expression = 1 + 0.6 * sin(2*pi*x); 1.0; 1.0
     end
 end
 ```
