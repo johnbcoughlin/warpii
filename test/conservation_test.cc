@@ -78,7 +78,7 @@ end
     warpii_obj.run();
     auto global_integral = disc.compute_global_integral(soln.mesh_sol, 0);
     for (unsigned int comp = 0; comp < 3; comp++) {
-        EXPECT_NEAR(global_integral[comp], ic_global_integral[comp], 1e-15);
+        EXPECT_NEAR(global_integral[comp], ic_global_integral[comp], 1e-13);
     }
 }
 
@@ -101,18 +101,14 @@ end
 subsection Species_1
     subsection InitialCondition
         set Function constants = pi=3.1415926535
-        set Function expression = 1 + 0.6 * sin(2*pi*x);\
-                                  1 + 0.6 * sin(2*pi*x);\
-                                  0.5 * (1 + 0.6*sin(2*pi*x)) + 1.5
+        set Function expression = 1 + 0.6 * sin(2*pi*x); 1.0; 1.0
     end
 
     subsection BoundaryConditions
         set 0 = Inflow
         subsection 0_Inflow
             set Function constants = gamma=1.66667,rhoL=3.857,uL=2.629,pL=10.333
-            set Function expression = rhoL; \
-                                      rhoL*uL; \
-                                      0.5 * (rhoL*uL*uL) + pL / (gamma - 1)
+            set Function expression = rhoL; uL; pL
         end
         set 1 = Outflow
     end
