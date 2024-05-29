@@ -52,17 +52,20 @@ class FluidFluxESDGSEMOperator {
           n_species(species.size()),
           species(species),
           split_form_volume_flux(discretization, gas_gamma),
-          subcell_finite_volume_flux(*discretization, gas_gamma)
+          subcell_finite_volume_flux(*discretization, gas_gamma),
+          sol_registers(3)
     {}
 
     void perform_forward_euler_step(
         FiveMSolutionVec &dst, const FiveMSolutionVec &u,
-        std::vector<FiveMSolutionVec> &sol_registers, const double dt,
+        const double dt,
         const double t, const double alpha = 1.0,
         const double beta = 0.0) const;
 
     double recommend_dt(const MatrixFree<dim, double> &mf,
                         const FiveMSolutionVec &sol);
+
+    void reinit(const FiveMSolutionVec& sol);
 
    private:
     void local_apply_inverse_mass_matrix(
@@ -124,12 +127,22 @@ class FluidFluxESDGSEMOperator {
     std::vector<std::shared_ptr<Species<dim>>> species;
     SplitFormVolumeFlux<dim> split_form_volume_flux;
     SubcellFiniteVolumeFlux<dim> subcell_finite_volume_flux;
+
+    mutable std::vector<FiveMSolutionVec> sol_registers;
 };
+
+template <int dim>
+void FluidFluxESDGSEMOperator<dim>::reinit(const FiveMSolutionVec& sol) {
+    for (int i = 0; i < 3; i++) {
+        sol_registers.emplace_back();
+        sol_registers[i].reinit(sol);
+    }
+}
 
 template <int dim>
 void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
     FiveMSolutionVec &dst, const FiveMSolutionVec &u,
-    std::vector<FiveMSolutionVec> &sol_registers, const double dt,
+    const double dt,
     const double t, const double alpha, const double beta) const {
     using Iterator = typename DoFHandler<1>::active_cell_iterator;
 

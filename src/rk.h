@@ -87,11 +87,10 @@ class SSPRK2Integrator {
                               const double dt,
                               const double t);
 
-    void reinit(const SolutionVec& sol, int sol_register_count);
+    void reinit(const SolutionVec& sol);
 
    private:
     SolutionVec f_1;
-    std::vector<SolutionVec> sol_registers;
 };
 
 template <typename Number, typename SolutionVec, typename Operator>
@@ -100,20 +99,15 @@ void SSPRK2Integrator<Number, SolutionVec, Operator>::evolve_one_time_step(
     SolutionVec& solution,
     const double dt, const double t) {
     forward_euler_operator.perform_forward_euler_step(
-        f_1, solution, sol_registers, dt, t);
+        f_1, solution, dt, t);
     forward_euler_operator.perform_forward_euler_step(
-        solution, f_1, sol_registers, dt, t + dt, 0.5, 0.5);
+        solution, f_1, dt, t + dt, 0.5, 0.5);
 }
 
 template <typename Number, typename SolutionVec, typename Operator>
 void SSPRK2Integrator<Number, SolutionVec, Operator>::reinit(
-    const SolutionVec& sol,
-    int sol_register_count) {
+    const SolutionVec& sol) {
     f_1.reinit(sol);
-    for (int i = 0; i < sol_register_count; i++) {
-        sol_registers.emplace_back();
-        sol_registers[i].reinit(sol);
-    }
 }
 
 

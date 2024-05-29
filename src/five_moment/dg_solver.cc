@@ -8,7 +8,8 @@ void FiveMomentDGSolver<dim>::reinit() {
     discretization->reinit();
     discretization->perform_allocation(solution.mesh_sol);
     solution.boundary_integrated_fluxes.reinit(n_boundaries, dim);
-    ssp_integrator.reinit(solution, 3);
+    ssp_integrator.reinit(solution);
+    fluid_flux_operator.reinit(solution);
 }
 
 template <int dim>
