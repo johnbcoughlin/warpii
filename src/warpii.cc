@@ -9,6 +9,7 @@
 #include "opts.h"
 #include "wrapper.h"
 #include "fpe.h"
+#include "utilities.h"
 
 namespace warpii {
 using namespace dealii;
@@ -120,8 +121,19 @@ void Warpii::setup() {
         enable_floating_point_exceptions();
     }
 
+    prm.declare_entry("WorkDir", "%A__%I", Patterns::Anything(), 
+R"(Format string for the working directory of the simulation.
+
+Format specifier:
+    - %A: The name of the application, e.g. "FiveMoment"
+    - %I: The name of the input file without file extension. If
+          the input is taken from stdin, the specifier is replaced
+          by the string "STDIN"
+    )");
     prm.declare_entry("Application", "FiveMoment", Patterns::Selection("FiveMoment|FPETest"));
     prm.parse_input_from_string(input, "", true);
+
+    create_and_move_to_subdir(format_workdir(prm, opts));
 
     std::unique_ptr<ApplicationWrapper> app_wrapper;
     if (prm.get("Application") == "FPETest") {
@@ -161,5 +173,31 @@ void Warpii::run() {
     run_complete = true;
 }
 
+std::string format_workdir(
+        const ParameterHandler& prm,
+        const WarpiiOpts& opts) {
+    std::string result = prm.get("WorkDir");
+    size_t pos = 0;
+
+    std::string app = prm.get("Application");
+    // Loop until all occurrences of "%A" are replaced
+    while ((pos = result.find("%A", pos)) != std::string::npos) {
+        result.replace(pos, 2, app);
+        pos += app.length(); // Move past the last replaced occurrence
+    }
+
+    pos = 0;
+    std::string inp = (opts.input == "-") 
+        ? "STDIN" 
+        : remove_file_extension(opts.input);
+
+    // Loop until all occurrences of "%A" are replaced
+    while ((pos = result.find("%I", pos)) != std::string::npos) {
+        result.replace(pos, 2, inp);
+        pos += inp.length(); // Move past the last replaced occurrence
+    }
+
+    return result;
+}
 
 }  // namespace warpii

@@ -1,41 +1,48 @@
 # Running a simple simulation {#first_simulation}
 
-WarpII uses deal.ii's [ParameterHandler](https://dealii.org/developer/doxygen/deal.II/classParameterHandler.html) class for user input.
-The following example input initializes a single-fluid five-moment (Euler) simulation
-in one dimension.
+In this tutorial we run a simple single-species, five-moment simulation.
+The equations we're solving are also called the compressible Euler equations.
 
-`sine_wave_euler.inp`:
+WarpII uses deal.ii's [ParameterHandler](https://dealii.org/developer/doxygen/deal.II/classParameterHandler.html) class for user input.
+The following example input initializes a single-fluid five-moment (Euler) simulation in one dimension.
+
+`sine_wave.inp`:
 ```
 set Application = FiveMoment
 set n_dims = 1
 set t_end = 1.0
 set fields_enabled = false
 
+# Use degree 2 finite elements, i.e. quadratic shape functions.
 set fe_degree = 2
 
 subsection geometry
     set left = 0.0
     set right = 1.0
-    set nx = 10
+    set nx = 50
 end
 
 subsection Species_1
     subsection InitialCondition
+        # We will specify primitive variables: [rho, u, p].
+        set VariablesType = Primitive
         set Function constants = pi=3.1415926535
-        set Function expression = 1 + 0.6 * sin(2*pi*x); \
-                                  1 + 0.6 * sin(2*pi*x); \
-                                  0.5 * (1 + 0.6*sin(2*pi*x)) + 1.5
+
+        # The initial condition is specified using a parsed function.
+        # The function components are separated by semicolons.
+        set Function expression = 1 + 0.6 * sin(2*pi*x); 1.0; 1.0
     end
 end
 ```
 
 To run the simulation,
 ```
-mkdir -p workdir
-cp sine_wave_euler.inp workdir
-cd workdir
-warpii sine_wave_euler.inp
+$ warpii sine_wave.inp
 ```
-Here we create a working directory by hand for WarpII.
-WarpII always uses the directory it is invoked from as the working directory where it writes
-out data files, log files, and meshes.
+WarpII creates a directory to run the simulation and output files into:
+```
+$ ls FiveMoment__sine_wave/
+solution_000.vtu
+...
+solution_010.vtu
+```
