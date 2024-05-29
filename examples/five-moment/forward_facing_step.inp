@@ -3,12 +3,12 @@ set n_dims = 2
 set t_end = 3.000
 set fields_enabled = false
 
-set fe_degree = 2
+set fe_degree = 4
 
 set n_boundaries = 6
 subsection geometry
     set GridType = ForwardFacingStep
-    set RefinementFactor = 3
+    set RefinementFactor = 2
 end
 
 set gas_gamma = 1.4
