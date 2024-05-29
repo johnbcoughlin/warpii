@@ -118,9 +118,9 @@ void SSPRK2Integrator<Number, SolutionVec, Operator>::reinit(
 
 
 template <typename SolutionVec, typename Operator>
-class KennedyCarpenter45 {
+class RK4 {
     public:
-        KennedyCarpenter45() {}
+        RK4() {}
 
         void evolve_one_time_step(Operator& op,
                 SolutionVec& solution,
@@ -128,5 +128,4 @@ class KennedyCarpenter45 {
                 const double t);
 
     private:
-        SolutionVec
 };
