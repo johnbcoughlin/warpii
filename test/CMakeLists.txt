@@ -22,7 +22,8 @@ set(TEST_SOURCES
 
 foreach(TEST_SOURCE ${TEST_SOURCES})
     get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
-    add_executable(${TEST_NAME} ${TEST_SOURCE})
+    add_executable(${TEST_NAME} ${TEST_SOURCE}
+        euler_test_helpers.cc)
     target_link_libraries(${TEST_NAME} GTest::gtest_main libwarpii)
     target_include_directories(${TEST_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
     deal_ii_setup_target(${TEST_NAME})
