@@ -27,7 +27,7 @@ class SpeciesFunc : public Function<dim> {
 
     static void declare_parameters(ParameterHandler &prm);
 
-    static SpeciesFunc<dim> create_from_parameters(ParameterHandler &prm,
+    static std::unique_ptr<SpeciesFunc<dim>> create_from_parameters(ParameterHandler &prm,
                                                    double gas_gamma);
 
    private:

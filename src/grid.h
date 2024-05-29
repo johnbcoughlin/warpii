@@ -7,17 +7,25 @@
 #include <deal.II/grid/tria.h>
 #include <deal.II/distributed/tria.h>
 #include <deal.II/grid/grid_tools.h>
+#include <deal.II/grid/grid_out.h>
 #include <memory>
+#include <fstream>
+#include <iostream>
+#include "grid_descriptions.h"
 
 namespace warpii {
 using namespace dealii;
 
+class GridWrapper {
+    public:
+    static void declare_parameters(ParameterHandler& prm);
+};
+
 template <int dim>
 class Grid {
    public:
-    Grid(Point<dim> left, Point<dim> right, std::array<unsigned int, dim> nx,
-            std::string periodic_dims)
-        : left(left), right(right), nx(nx), periodic_dims(periodic_dims) {}
+    Grid(std::unique_ptr<GridDescription<dim>> description)
+        : description(std::move(description)) {}
 
     static void declare_parameters(ParameterHandler& prm);
 
@@ -28,23 +36,11 @@ class Grid {
 
     Triangulation<dim> triangulation;
 
-   private:
-    Point<dim> left;
-    Point<dim> right;
-    std::array<unsigned int, dim> nx;
-    std::string periodic_dims;
-};
+    void output_svg(std::string filename);
 
-template <int dim>
-Point<dim> default_right_point() {
-    if (dim == 1) {
-        return Point<dim>(1.0);
-    } else if (dim == 2) {
-        return Point<dim>(1.0, 1.0);
-    } else {
-        return Point<dim>(1.0, 1.0, 1.0);
-    }
-}
+   private:
+    std::unique_ptr<GridDescription<dim>> description;
+};
 
 template <int dim>
 void Grid<dim>::declare_parameters(ParameterHandler& prm) {
@@ -52,17 +48,13 @@ void Grid<dim>::declare_parameters(ParameterHandler& prm) {
                               std::array<unsigned int, dim>>;
     using PointPattern = Patterns::Tools::Convert<Point<dim>>;
     prm.enter_subsection("geometry");
-    {
-        std::array<unsigned int, dim> default_nx;
-        default_nx.fill(1);
-        prm.declare_entry("nx", ArrayPattern::to_string(default_nx),
-                          *ArrayPattern::to_pattern());
-        Point<dim> pt = Point<dim>();
-        prm.declare_entry("left", PointPattern::to_string(pt), *PointPattern::to_pattern());
-        Point<dim> pt1 = default_right_point<dim>();
-        prm.declare_entry("right", PointPattern::to_string(pt1), *PointPattern::to_pattern());
-
-        prm.declare_entry("periodic_dimensions", "x,y,z", Patterns::MultipleSelection("x|y|z"));
+    std::string grid_type = prm.get("GridType");
+    if (grid_type == "HyperRectangle") {
+        HyperRectangleDescription<dim>::declare_parameters(prm);
+    } else if (grid_type == "ForwardFacingStep") {
+        ForwardFacingStepDescription<dim>::declare_parameters(prm);
+    } else {
+        Assert(false, ExcMessage("No declaration for grid type"));
     }
     prm.leave_subsection();  // geometry
 }
@@ -71,35 +63,33 @@ template <int dim>
 std::shared_ptr<Grid<dim>> Grid<dim>::create_from_parameters(
     ParameterHandler& prm) {
     prm.enter_subsection("geometry");
-    Triangulation<dim> tri;
-    std::array<unsigned int, dim> nx = Patterns::Tools::Convert<std::array<unsigned int, dim>>::to_value(prm.get("nx"));
-    Point<dim> left = Patterns::Tools::Convert<Point<dim>>::to_value(prm.get("left"));
-    Point<dim> right = Patterns::Tools::Convert<Point<dim>>::to_value(prm.get("right"));
-    std::string periodic_dims = prm.get("periodic_dimensions");
-
-    auto result = std::make_shared<Grid<dim>>(left, right, nx, periodic_dims);
+    std::string grid_type = prm.get("GridType");
+    std::shared_ptr<Grid<dim>> result;
+    if (grid_type == "HyperRectangle")
+    {
+         result = std::make_shared<Grid<dim>>(
+                HyperRectangleDescription<dim>::create_from_parameters(prm));
+    } else if (grid_type == "ForwardFacingStep") {
+        result = std::make_shared<Grid<dim>>(
+                ForwardFacingStepDescription<dim>::create_from_parameters(prm));
+    }
     prm.leave_subsection();  // geometry
     return result;
 }
 
 template <int dim>
 void Grid<dim>::reinit() {
-    std::vector<unsigned int> subdivisions = std::vector(nx.data(), nx.data()+dim);
-    GridGenerator::subdivided_hyper_rectangle(triangulation, subdivisions, left, right, true);
+    description->reinit(triangulation);
+}
 
-    std::vector<GridTools::PeriodicFacePair<
-        typename parallel::distributed::Triangulation<dim>::cell_iterator>>
-        matched_pairs;
-    if (periodic_dims.find("x") != std::string::npos) {
-        GridTools::collect_periodic_faces(triangulation, 0, 1, 0, matched_pairs);
-    }
-    if (dim >= 2 && periodic_dims.find("y") != std::string::npos) {
-        GridTools::collect_periodic_faces(triangulation, 2, 3, 1, matched_pairs);
-    }
-    if (dim >= 3 && periodic_dims.find("z") != std::string::npos) {
-        GridTools::collect_periodic_faces(triangulation, 4, 5, 2, matched_pairs);
-    }
-    triangulation.add_periodicity(matched_pairs);
+template <int dim>
+void Grid<dim>::output_svg(std::string filename) {
+    std::ofstream out(filename);
+    GridOut grid_out;
+    GridOutFlags::Svg flags;
+    flags.label_boundary_id = true;
+    grid_out.set_flags(flags);
+    grid_out.write_svg(triangulation, out);
 }
 
 }  // namespace warpii

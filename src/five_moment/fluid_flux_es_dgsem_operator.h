@@ -42,6 +42,18 @@ struct ScratchData {
 struct CopyData {};
 
 template <int dim>
+FESeries::Legendre<dim> initialize_legendre(
+    FiveMomentDGDiscretization<dim>& discretization) {
+    unsigned int fe_degree = discretization.get_fe_degree();
+    unsigned int Np = fe_degree + 1;
+    std::vector<unsigned int> n_coefs_per_dim = {};
+    n_coefs_per_dim.push_back(Np);
+    FESeries::Legendre<dim> legendre(n_coefs_per_dim, discretization.get_dummy_fe_collection(), 
+            discretization.get_dummy_q_collection(), 0);
+    return legendre;
+}
+
+template <int dim>
 class FluidFluxESDGSEMOperator {
    public:
     FluidFluxESDGSEMOperator(
@@ -52,14 +64,16 @@ class FluidFluxESDGSEMOperator {
           n_species(species.size()),
           species(species),
           split_form_volume_flux(discretization, gas_gamma),
-          subcell_finite_volume_flux(*discretization, gas_gamma)
-    {}
+          subcell_finite_volume_flux(*discretization, gas_gamma),
+          legendre(initialize_legendre(*discretization))
+    {
+    }
 
     void perform_forward_euler_step(
         FiveMSolutionVec &dst, const FiveMSolutionVec &u,
         std::vector<FiveMSolutionVec> &sol_registers, const double dt,
         const double t, const double alpha = 1.0,
-        const double beta = 0.0) const;
+        const double beta = 0.0);
 
     double recommend_dt(const MatrixFree<dim, double> &mf,
                         const FiveMSolutionVec &sol);
@@ -75,7 +89,7 @@ class FluidFluxESDGSEMOperator {
         const MatrixFree<dim, double> &mf,
         LinearAlgebra::distributed::Vector<double> &dst,
         const LinearAlgebra::distributed::Vector<double> &src,
-        const std::pair<unsigned int, unsigned int> &cell_range) const;
+        const std::pair<unsigned int, unsigned int> &cell_range);
 
     void local_apply_face(
         const MatrixFree<dim, double> &mf,
@@ -93,6 +107,7 @@ class FluidFluxESDGSEMOperator {
     double compute_cell_transport_speed(
         const MatrixFree<dim, double> &mf,
         const LinearAlgebra::distributed::Vector<double> &sol) const;
+
     /**
      * Compute the troubled cell indicator of Persson and Peraire,
      * "Sub-Cell Shock Capturing for Discontinuous Galerkin Methods"
@@ -101,7 +116,7 @@ class FluidFluxESDGSEMOperator {
      */
     VectorizedArray<double> shock_indicators(
         const FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
-        FESeries::Legendre<dim> &legendre) const;
+        FESeries::Legendre<dim> &legendre);
 
     void calculate_high_order_EC_flux(
         LinearAlgebra::distributed::Vector<double> &dst,
@@ -124,13 +139,14 @@ class FluidFluxESDGSEMOperator {
     std::vector<std::shared_ptr<Species<dim>>> species;
     SplitFormVolumeFlux<dim> split_form_volume_flux;
     SubcellFiniteVolumeFlux<dim> subcell_finite_volume_flux;
+    FESeries::Legendre<dim> legendre;
 };
 
 template <int dim>
 void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
     FiveMSolutionVec &dst, const FiveMSolutionVec &u,
     std::vector<FiveMSolutionVec> &sol_registers, const double dt,
-    const double t, const double alpha, const double beta) const {
+    const double t, const double alpha, const double beta) {
     using Iterator = typename DoFHandler<1>::active_cell_iterator;
 
     auto Mdudt_register = sol_registers.at(0);
@@ -245,7 +261,7 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
     const MatrixFree<dim, double> &mf,
     LinearAlgebra::distributed::Vector<double> &dst,
     const LinearAlgebra::distributed::Vector<double> &src,
-    const std::pair<unsigned int, unsigned int> &cell_range) const {
+    const std::pair<unsigned int, unsigned int> &cell_range) {
     unsigned int fe_degree = discretization->get_fe_degree();
     unsigned int Np = fe_degree + 1;
     FEValues<dim> fe_values(discretization->get_mapping(),
@@ -254,14 +270,6 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
 
     const std::vector<double> &quadrature_weights =
         fe_values.get_quadrature().get_weights();
-
-    std::vector<unsigned int> n_coefs_per_dim = {};
-    n_coefs_per_dim.push_back(Np);
-    auto fe_collection =
-        hp::FECollection<dim>(fe_values.get_fe().base_element(0));
-    auto q_collection = hp::QCollection<dim>(fe_values.get_quadrature());
-    FESeries::Legendre<dim> legendre(n_coefs_per_dim, fe_collection,
-                                     q_collection, 0);
 
     FullMatrix<double> D(Np, Np);
     FullMatrix<double> Q(Np, Np);
@@ -510,7 +518,7 @@ double FluidFluxESDGSEMOperator<dim>::compute_cell_transport_speed(
 template <int dim>
 VectorizedArray<double> FluidFluxESDGSEMOperator<dim>::shock_indicators(
     const FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
-    FESeries::Legendre<dim> &legendre) const {
+    FESeries::Legendre<dim> &legendre) {
     unsigned int Np = discretization->get_fe_degree() + 1;
     AssertThrow(Np >= 2, ExcMessage("Shock indicators are not supported nor "
                                     "needed for P0 polynomial bases"));

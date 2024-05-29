@@ -20,7 +20,7 @@ void Species<dim>::declare_parameters(ParameterHandler &prm,
             std::stringstream ss;
             ss << i << "_Inflow";
             prm.enter_subsection(ss.str());
-            Functions::ParsedFunction<dim>::declare_parameters(prm, dim + 2);
+            SpeciesFunc<dim>::declare_parameters(prm);
             prm.leave_subsection();
         }
     }
@@ -51,9 +51,7 @@ std::shared_ptr<Species<dim>> Species<dim>::create_from_parameters(
                 std::stringstream ss;
                 ss << i << "_Inflow";
                 prm.enter_subsection(ss.str());
-                std::unique_ptr<Functions::ParsedFunction<dim>> inflow_func =
-                    std::make_unique<Functions::ParsedFunction<dim>>(dim + 2);
-                inflow_func->parse_parameters(prm);
+                auto inflow_func = SpeciesFunc<dim>::create_from_parameters(prm, gas_gamma);
                 bc_map.set_inflow_boundary(boundary_id, std::move(inflow_func));
                 prm.leave_subsection();
             }
@@ -61,7 +59,7 @@ std::shared_ptr<Species<dim>> Species<dim>::create_from_parameters(
     }
     prm.leave_subsection();
     prm.enter_subsection("InitialCondition");
-    SpeciesFunc<dim> initial_condition = SpeciesFunc<dim>::create_from_parameters(prm, gas_gamma);
+    std::unique_ptr<SpeciesFunc<dim>> initial_condition = SpeciesFunc<dim>::create_from_parameters(prm, gas_gamma);
     prm.leave_subsection();
 
     return std::make_shared<Species<dim>>(name, charge, mass, bc_map,

@@ -25,7 +25,7 @@ class Species {
    public:
     Species(std::string name, double charge, double mass,
             EulerBCMap<dim> bc_map, 
-            SpeciesFunc<dim> initial_condition)
+            std::unique_ptr<SpeciesFunc<dim>> initial_condition)
         : name(name),
           charge(charge),
           mass(mass),
@@ -45,7 +45,7 @@ class Species {
     double charge;
     double mass;
     EulerBCMap<dim> bc_map;
-    SpeciesFunc<dim> initial_condition;
+    std::unique_ptr<SpeciesFunc<dim>> initial_condition;
 };
 
 }  // namespace five_moment

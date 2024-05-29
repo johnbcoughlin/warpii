@@ -27,10 +27,8 @@ subsection Species_1
     subsection BoundaryConditions
         set 0 = Inflow
         subsection 0_Inflow
-            set Function constants = gamma=1.66667,rhoL=3.857,uL=2.629,pL=10.333
-            set Function expression = rhoL; \
-                                      rhoL*uL; \
-                                      0.5 * (rhoL*uL*uL) + pL / (gamma - 1)
+            set Function constants = rhoL=3.857,uL=2.629,pL=10.333
+            set Function expression = rhoL; uL; pL
         end
         set 1 = Outflow
     end
