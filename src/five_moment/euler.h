@@ -130,6 +130,54 @@ inline DEAL_II_ALWAYS_INLINE Number euler_beta(
 }
 
 /**
+ * The specific entropy, s = ln(p / rho^gamma).
+ */
+template <int dim, typename Number>
+Number euler_thermodynamic_specific_entropy(
+        const Tensor<1, dim+2, Number> q, double gamma) {
+    return std::log(euler_pressure<dim>(q, gamma)) - gamma * std::log(q[0]);
+}
+
+template <int dim, typename Number>
+Number euler_mathematical_entropy(
+        const Tensor<1, dim+2, Number> q, double gamma) {
+    Number s = euler_thermodynamic_specific_entropy<dim>(q, gamma);
+    return -s * q[0] / (gamma - 1.0);
+}
+
+template <int dim, typename Number>
+Tensor<1, dim+2, Number> euler_entropy_variables(
+        const Tensor<1, dim+2, Number> q, double gamma) {
+    Number beta = euler_beta<dim>(q, euler_pressure<dim>(q, gamma));
+    Number s = euler_thermodynamic_specific_entropy<dim>(q, gamma);
+
+    Tensor<1, dim, Number> u = euler_velocity<dim>(q);
+    Number u2 = Number(0.0);
+    for (unsigned int d = 0; d < dim; d++) {
+        u2 += u[d]*u[d];
+    }
+    Tensor<1, dim+2, Number> w;
+    w[0] = (gamma - s) / (gamma - 1.0) - beta * u2;
+    for (unsigned int d = 0; d < dim; d++) {
+        w[d+1] = 2*beta * u[d];
+    }
+    w[dim+1] = -2*beta;
+    return w;
+}
+
+template <int dim, typename Number>
+Tensor<1, dim, Number> euler_entropy_flux(const Tensor<1, dim+2, Number> state, double gamma) {
+    Tensor<1, dim, Number> q;
+    Number rho = state[0];
+    Number s = euler_thermodynamic_specific_entropy<dim>(state, gamma);
+    Tensor<1, dim, Number> u = euler_velocity<dim>(state);
+    for (unsigned int d = 0; d < dim; d++) {
+        q[d] = -rho * u[d] * s / (gamma - 1.0);
+    }
+    return q;
+}
+
+/**
  * Chandrashekar
  */
 template <int dim, typename Number>
@@ -220,7 +268,7 @@ inline DEAL_II_ALWAYS_INLINE Tensor<1, dim+2, Number> euler_CH_entropy_dissipati
 
     const Tensor<1, dim, Number> u_jump_avg_prod = componentwise_product(u_jump, u_avg);
 
-    const Number energy_stab = (1.0 / (2.0 * (gamma - 1.0) * beta_ln) + sum(u_prod)) * rho_jump +
+    const Number energy_stab = (1.0 / (2.0 * (gamma - 1.0) * beta_ln) + 0.5*sum(u_prod)) * rho_jump +
         rho_avg * sum(u_jump_avg_prod) + rho_avg / (2.0*(gamma - 1.0)) * beta_inv_jump;
 
     flux[0] -= 0.5 * lambda_max * rho_jump;
