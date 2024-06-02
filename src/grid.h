@@ -2,6 +2,7 @@
 
 #include <deal.II/base/parameter_handler.h>
 #include <deal.II/base/patterns.h>
+#include <deal.II/base/utilities.h>
 #include <deal.II/fe/mapping_q.h>
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria.h>
@@ -11,6 +12,7 @@
 #include <memory>
 #include <fstream>
 #include <iostream>
+#include "extension.h"
 #include "grid_descriptions.h"
 
 namespace warpii {
@@ -27,10 +29,11 @@ class Grid {
     Grid(std::unique_ptr<GridDescription<dim>> description)
         : description(std::move(description)) {}
 
-    static void declare_parameters(ParameterHandler& prm);
+    static void declare_parameters(ParameterHandler& prm,
+            std::shared_ptr<GridExtension<dim>> ext);
 
     static std::shared_ptr<Grid<dim>> create_from_parameters(
-        ParameterHandler& prm);
+        ParameterHandler& prm, std::shared_ptr<GridExtension<dim>> ext);
 
     void reinit();
 
@@ -39,11 +42,13 @@ class Grid {
     void output_svg(std::string filename);
 
    private:
+    std::shared_ptr<GridExtension<dim>> ext;
     std::unique_ptr<GridDescription<dim>> description;
 };
 
 template <int dim>
-void Grid<dim>::declare_parameters(ParameterHandler& prm) {
+void Grid<dim>::declare_parameters(ParameterHandler& prm,
+        std::shared_ptr<GridExtension<dim>> ext) {
     using ArrayPattern = Patterns::Tools::Convert<
                               std::array<unsigned int, dim>>;
     using PointPattern = Patterns::Tools::Convert<Point<dim>>;
@@ -51,6 +56,8 @@ void Grid<dim>::declare_parameters(ParameterHandler& prm) {
     std::string grid_type = prm.get("GridType");
     if (grid_type == "HyperRectangle") {
         HyperRectangleDescription<dim>::declare_parameters(prm);
+    } else if (grid_type == "Extension") {
+        ext->declare_geometry_parameters(prm);
     } else if (grid_type == "ForwardFacingStep") {
         ForwardFacingStepDescription<dim>::declare_parameters(prm);
     } else {
@@ -61,12 +68,15 @@ void Grid<dim>::declare_parameters(ParameterHandler& prm) {
 
 template <int dim>
 std::shared_ptr<Grid<dim>> Grid<dim>::create_from_parameters(
-    ParameterHandler& prm) {
+    ParameterHandler& prm,
+    std::shared_ptr<GridExtension<dim>> ext) {
     prm.enter_subsection("geometry");
     std::string grid_type = prm.get("GridType");
     std::shared_ptr<Grid<dim>> result;
-    if (grid_type == "HyperRectangle")
-    {
+    if (grid_type == "Extension") {
+        result = std::make_shared<Grid<dim>>(
+                ExtensionGridDescription<dim>::create_from_parameters(prm, ext));
+    } else if (grid_type == "HyperRectangle") {
          result = std::make_shared<Grid<dim>>(
                 HyperRectangleDescription<dim>::create_from_parameters(prm));
     } else if (grid_type == "ForwardFacingStep") {

@@ -4,16 +4,40 @@
 
 #include "app.h"
 #include "opts.h"
+#include "extension.h"
 
 namespace warpii {
 using namespace dealii;
 
 class Warpii {
    public:
-    Warpii(): setup_complete(false), run_complete(false) {}
-    Warpii(WarpiiOpts opts) : opts(opts), setup_complete(false), run_complete(false) {}
+
+    Warpii(): 
+        opts(WarpiiOpts()),
+        extension(nullptr),
+        setup_complete(false), 
+        run_complete(false)
+    {}
+
+    Warpii(WarpiiOpts opts): 
+        opts(opts), 
+        extension(nullptr),
+        setup_complete(false), 
+        run_complete(false) 
+    {}
+
+    Warpii(WarpiiOpts opts, std::shared_ptr<Extension> extension): 
+        opts(opts), 
+        extension(extension),
+        setup_complete(false), 
+        run_complete(false) 
+    {}
 
     static Warpii create_from_cli(int argc, char** argv);
+
+    static Warpii create_from_cli(
+            int argc, char** argv, 
+            std::shared_ptr<Extension> extension);
 
     /**
      * Loads the `input` string from the file specified by `opts`.
@@ -45,6 +69,7 @@ class Warpii {
    private:
     ParameterHandler prm;
     std::unique_ptr<AbstractApp> app;
+    std::shared_ptr<Extension> extension;
     bool setup_complete;
     bool run_complete;
 };

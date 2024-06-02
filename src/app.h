@@ -1,6 +1,7 @@
 #pragma once
 
 #include "opts.h"
+#include "extension.h"
 
 namespace warpii {
 class AbstractApp {

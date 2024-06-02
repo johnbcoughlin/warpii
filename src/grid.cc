@@ -13,7 +13,7 @@ using namespace dealii;
 void GridWrapper::declare_parameters(ParameterHandler& prm) {
     prm.enter_subsection("geometry");
     prm.declare_entry("GridType", "HyperRectangle",
-                      Patterns::Selection("HyperRectangle|ForwardFacingStep"),
+                      Patterns::Selection("HyperRectangle|ForwardFacingStep|Extension"),
                       "The type of GridDescription whose parameters are "
                       "supplied in this section.");
     prm.leave_subsection();
