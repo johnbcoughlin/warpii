@@ -127,23 +127,4 @@ class HyperRectangleDescription : public GridDescription<dim> {
     std::string periodic_dims;
 };
 
-/**
- */
-template <int dim>
-class ForwardFacingStepDescription : public GridDescription<dim> {
-   public:
-    ForwardFacingStepDescription(unsigned int refinement_factor)
-        : refinement_factor(refinement_factor) {}
-
-    static void declare_parameters(ParameterHandler& prm);
-
-    static std::unique_ptr<ForwardFacingStepDescription<dim>> create_from_parameters(
-        ParameterHandler& prm);
-
-    void reinit(Triangulation<dim>& tri) override;
-
-   private:
-    unsigned int refinement_factor;
-};
-
 }  // namespace warpii

@@ -58,8 +58,6 @@ void Grid<dim>::declare_parameters(ParameterHandler& prm,
         HyperRectangleDescription<dim>::declare_parameters(prm);
     } else if (grid_type == "Extension") {
         ext->declare_geometry_parameters(prm);
-    } else if (grid_type == "ForwardFacingStep") {
-        ForwardFacingStepDescription<dim>::declare_parameters(prm);
     } else {
         Assert(false, ExcMessage("No declaration for grid type"));
     }
@@ -79,9 +77,6 @@ std::shared_ptr<Grid<dim>> Grid<dim>::create_from_parameters(
     } else if (grid_type == "HyperRectangle") {
          result = std::make_shared<Grid<dim>>(
                 HyperRectangleDescription<dim>::create_from_parameters(prm));
-    } else if (grid_type == "ForwardFacingStep") {
-        result = std::make_shared<Grid<dim>>(
-                ForwardFacingStepDescription<dim>::create_from_parameters(prm));
     }
     prm.leave_subsection();  // geometry
     return result;
