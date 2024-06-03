@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../extension.h"
+#include "../extensions/extension.h"
 #include <deal.II/base/parameter_handler.h>
 #include <deal.II/grid/tria.h>
 

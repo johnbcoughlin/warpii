@@ -1,7 +1,7 @@
 #pragma once
 #include <deal.II/base/parameter_handler.h>
 #include <deal.II/grid/tria.h>
-#include "extension.h"
+#include "extensions/extension.h"
 
 using namespace dealii;
 namespace warpii {

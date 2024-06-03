@@ -1,0 +1,54 @@
+#include <iostream>
+#include <fstream>
+
+#include "extension_generation.h"
+
+namespace warpii {
+
+void generate_extension() {
+    generate_extension_cmakelists();
+}
+
+void generate_extension_cmakelists() {
+    std::ofstream cmakelists;
+    cmakelists.open("CMakeLists.txt");
+    cmakelists << R"(
+cmake_minimum_required(VERSION 3.21)
+project(WarpII_Extension)
+
+set(CMAKE_CXX_STANDARD 17)
+
+list(INSERT CMAKE_PREFIX_PATH 0 @DEALII_INSTALL_DIR@)
+
+find_package(deal.II @DEALII_VERSION@ REQUIRED)
+set(DEAL_II_WITH_MPI ON)
+deal_ii_initialize_cached_variables()
+
+add_executable(main main.cc)
+target_link_libraries(main libwarpii)
+deal_ii_setup_target(main)
+
+add_custom_command(TARGET main
+    POST_BUILD
+    COMMAND ln -s ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}/main)
+)";
+    cmakelists.close();
+}
+
+void generate_extension_makefile() {
+    std::ofstream makefile;
+    makefile.open("Makefile");
+    makefile << R"(
+BUILD = Release
+
+all: builds/$(BUILD)/main
+
+builds/$(BUILD)/main: main.cc
+	cmake --build -DCMAKE_BUILD_TYPE=$(BUILD) --parallel
+
+.PHONY: all clean
+)";
+    makefile.close();
+}
+
+}

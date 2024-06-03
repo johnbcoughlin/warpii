@@ -12,7 +12,7 @@
 #include <memory>
 #include <fstream>
 #include <iostream>
-#include "extension.h"
+#include "extensions/extension.h"
 #include "grid_descriptions.h"
 
 namespace warpii {

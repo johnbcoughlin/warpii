@@ -4,7 +4,7 @@
 
 #include "app.h"
 #include "opts.h"
-#include "extension.h"
+#include "extensions/extension.h"
 
 namespace warpii {
 using namespace dealii;
