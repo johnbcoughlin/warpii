@@ -47,3 +47,5 @@ add_test(
     COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/scripts/headers-start-with-pragma-once.sh"
 )
 set_tests_properties(Pragmas PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_subdirectory(doctests)

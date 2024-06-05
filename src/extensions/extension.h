@@ -17,6 +17,10 @@ class Extension {
     virtual ~Extension() = default;
 };
 
+/**
+ * Abstract class for extensions that construct their own mesh using
+ * deal.II's Triangulation manipulation functions.
+ */
 template <int dim>
 class GridExtension {
     public:
@@ -24,10 +28,19 @@ class GridExtension {
 
     /**
      * Declare any parameters required for the triangulation.
+     *
+     * @param prm: Will be scoped to the `geometry` subsection.
      */
     virtual void declare_geometry_parameters(dealii::ParameterHandler& prm);
 
-    virtual void populate_triangulation(dealii::Triangulation<dim>&,
+    /**
+     * Populate the given triangulation with vertex and cell information.
+     *
+     * @param tria: The output triangulation
+     * @param prm: Will be scoped to the `geometry` subsection. Can be used to retrieve
+     * parameters declared in declare_geometry_parameters().
+     */
+    virtual void populate_triangulation(dealii::Triangulation<dim>& tria,
                                         const dealii::ParameterHandler& prm);
 };
 

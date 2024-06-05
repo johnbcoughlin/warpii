@@ -5,6 +5,8 @@ INPUT = README.md \
         @PROJECT_SOURCE_DIR@/docs \
         @PROJECT_SOURCE_DIR@/src
 
+RECURSIVE = YES
+
 STRIP_FROM_PATH        = @PROJECT_SOURCE_DIR@ \
                          @PROJECT_BINARY_DIR@
 

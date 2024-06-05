@@ -7,6 +7,9 @@
 namespace warpii {
 
     namespace five_moment {
+        /**
+         * Extension for FiveMoment applications.
+         */
         template <int dim>
         class Extension : public virtual warpii::Extension, public virtual GridExtension<dim> {
 
