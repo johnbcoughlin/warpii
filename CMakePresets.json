@@ -16,7 +16,7 @@
             "CMAKE_BUILD_TYPE": "Release",
             "CMAKE_CXX_FLAGS": "-Wall -Wextra -Wpedantic -Werror",
             "WARPII_DOC_BUILD": "TRUE",
-            "WARPII_EXTENSION_MAKEFILE_GENERATOR": "generate_makefile-ubuntu.sh"
+            "WARPII_EXTENSION_MAKEFILE_GENERATOR": "generate_makefile-macos.sh"
         }
     },
     {

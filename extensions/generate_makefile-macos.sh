@@ -7,7 +7,8 @@ CXX=$2
 DEAL_II_DEBUG_LIB=$3
 DEAL_II_RELEASE_LIB=$4
 MPI_DIR=$5
-LIBWARPII_BINARY_DIR=$6
+export LIBWARPII_BINARY_DIR=$6
+LINK_TXT=$7
 
 DEAL_II_DIR=$(dirname "${DEAL_II_RELEASE_LIB}")
 DEAL_II_LIB_FILE=$(basename "${DEAL_II_RELEASE_LIB}")
@@ -31,8 +32,20 @@ DEAL_II_LIB = \$(DEAL_II_RELEASE)
 all: \$(FILENAME)
 
 \$(FILENAME): \$(FILENAME).o
-	$CXX \$(FILENAME).o -o \$(FILENAME) -L${LIBWARPII_BINARY_DIR} -L${DEAL_II_DIR} -L${MPI_DIR} -lmpi -l\$(DEAL_II_LIB) -llibwarpii
+EOF
 
+cat $LINK_TXT | awk 'BEGIN { 
+} 
+{ 
+    gsub(/CMakeFiles\/dummy_extension\.dir\/dummy_extension_main\.cc\.o -o dummy_extension/, "\$(FILENAME).o -o \$(FILENAME)", $0)
+
+    gsub(/..\/src\/liblibwarpii.a/, ENVIRON["LIBWARPII_BINARY_DIR"]"/liblibwarpii.a", $0)
+
+    print "\t",$0"\n"; 
+}' \
+    >> Makefile.example
+
+cat >>Makefile.example <<EOF
 \$(FILENAME).o: \$(FILENAME).cc
 EOF
 

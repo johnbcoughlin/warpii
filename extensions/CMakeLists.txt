@@ -17,6 +17,8 @@ message("MPI DIR: ${MPI_DIR}")
 get_target_property(DEAL_II_DEBUG_LIB ${DEAL_II_TARGET_DEBUG} LOCATION)
 get_target_property(DEAL_II_RELEASE_LIB ${DEAL_II_TARGET_RELEASE} LOCATION)
 
+set(EXT_LINK_TXT "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/dummy_extension.dir/link.txt")
+
 add_custom_command(
     OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/Makefile.example"
     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/${WARPII_EXTENSION_MAKEFILE_GENERATOR} 
@@ -26,6 +28,7 @@ add_custom_command(
             ${DEAL_II_RELEASE_LIB}
             ${MPI_DIR}
             ${LIBWARPII_DIR}
+            ${EXT_LINK_TXT}
     DEPENDS dummy_extension "${CMAKE_CURRENT_SOURCE_DIR}/${WARPII_EXTENSION_MAKEFILE_GENERATOR}")
 
 add_custom_target(generate-example-makefile

@@ -8,6 +8,7 @@ DEAL_II_DEBUG_LIB=$3
 DEAL_II_RELEASE_LIB=$4
 MPI_DIR=$5
 LIBWARPII_BINARY_DIR=$6
+LINK_TXT=$7
 
 DEAL_II_DIR=$(dirname "${DEAL_II_RELEASE_LIB}")
 DEAL_II_LIB_FILE=$(basename "${DEAL_II_RELEASE_LIB}")
@@ -22,7 +23,15 @@ DEAL_II_LIB = \$(DEAL_II_RELEASE)
 all: \$(FILENAME)
 
 \$(FILENAME): \$(FILENAME).o
-	$CXX -Wl,--as-needed \$(FILENAME).o -o \$(FILENAME) -L${LIBWARPII_BINARY_DIR} -L${DEAL_II_DIR} -L${MPI_DIR} -lmpi -lmpi_cxx -l\$(DEAL_II_LIB) -llibwarpii
+EOF
+
+echo "\t" >> Makefile.example
+echo $(cat $LINK_TXT | sed '/s/dummy_extension/main/g') -n >> Makefile.example
+
+cat Makefile.example
+
+cat >>Makefile.example <<EOF
+	$CXX -Wl,--as-needed \$(FILENAME).o -o \$(FILENAME) -L${LIBWARPII_BINARY_DIR} -L${DEAL_II_DIR} -L${MPI_DIR} -L/usr/lib/x86_64-linux-gnu -ltbb -lmpi -lmpi_cxx -l\$(DEAL_II_LIB) -llibwarpii
 
 \$(FILENAME).o: \$(FILENAME).cc
 EOF
@@ -44,3 +53,6 @@ clean:
 
 .PHONY: all clean
 EOF
+
+echo $LINK_TXT
+cat $LINK_TXT >> Makefile.example

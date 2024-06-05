@@ -51,8 +51,9 @@ $PRINT_CODE_BLOCK 8 $TUTORIAL > plate_with_hole.inp
 # Reduce the refinement levels from the actual tutorial:
 cat >> plate_with_hole.inp <<EOF
 subsection geometry
-    set GlobalRefinementLevels = 0
+    set GlobalRefinementLevels = 2
 end
+set t_end = 0.01
 EOF
 
 # Run simulation
