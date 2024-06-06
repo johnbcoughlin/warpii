@@ -81,20 +81,13 @@ void concentric_rectangular_hyper_shells(Triangulation<2>& tria,
     for (unsigned int i = 0; i < n_shells; i++) {
         double x_width = x_widths[i];
         double y_width = y_widths[i];
-        SHOW(x_width);
-        SHOW(y_width);
         Triangulation<2> shell_tria;
-        std::cout << shell_left << std::endl;
-        std::cout << shell_right << std::endl;
         rectangular_hyper_shell(shell_tria, shell_left, shell_right,
                 x_width, y_width, n_cells);
         shell_left += Point<2>(x_width, y_width);
         shell_right -= Point<2>(x_width, y_width);
 
         double grid_vertex_tolerance = 0.1 * std::min(x_widths[i], y_widths[i]);
-        //Triangulation<2> temp;
-        //temp.copy_triangulation(tria);
-        //tria.clear();
         GridGenerator::merge_triangulations(
                 shell_tria, tria, tria, grid_vertex_tolerance);
     }

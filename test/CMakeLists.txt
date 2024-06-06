@@ -39,7 +39,13 @@ add_test(
     COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/fpe-enabled-test.sh" "${CMAKE_BINARY_DIR}/warpii"
 )
 add_test(
+    NAME CompileExtensionTest
+    COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/scripts/compile-extension.sh" "${CMAKE_BINARY_DIR}/extensions/Makefile.example"
+)
+add_test(
     NAME Pragmas
     COMMAND bash "${CMAKE_CURRENT_SOURCE_DIR}/scripts/headers-start-with-pragma-once.sh"
 )
 set_tests_properties(Pragmas PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_subdirectory(doctests)

@@ -3,11 +3,14 @@ project(WarpII)
 
 set(CMAKE_CXX_STANDARD 17)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
 if(DEFINED CACHE{WARPII_DOC_BUILD})
     include("warpii-doc")
 endif()
+include("warpii-extension")
 
 if (WARPII_ONLY_DOCS)
     return()
@@ -37,4 +40,6 @@ deal_ii_setup_target(warpii)
 
 enable_testing()
 add_subdirectory(test)
+
+add_subdirectory(extensions)
 

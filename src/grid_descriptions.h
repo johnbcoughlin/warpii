@@ -1,6 +1,7 @@
 #pragma once
 #include <deal.II/base/parameter_handler.h>
 #include <deal.II/grid/tria.h>
+#include "extensions/extension.h"
 
 using namespace dealii;
 namespace warpii {
@@ -70,6 +71,36 @@ class GridDescription {
     virtual void reinit(Triangulation<dim>& tri);
 };
 
+template <int dim>
+class ExtensionGridDescription : public GridDescription<dim> {
+    public:
+        ExtensionGridDescription(ParameterHandler& prm,
+                std::shared_ptr<GridExtension<dim>> ext):
+            prm(prm), ext(ext)
+
+    {}
+
+        static void declare_parameters(ParameterHandler& prm);
+
+        static std::unique_ptr<ExtensionGridDescription<dim>> create_from_parameters(
+                ParameterHandler& prm, std::shared_ptr<GridExtension<dim>> ext) {
+            return std::make_unique<ExtensionGridDescription<dim>>(prm, ext);
+        }
+
+        void reinit(Triangulation<dim>& tri) override;
+
+    private:
+        ParameterHandler& prm;
+        std::shared_ptr<GridExtension<dim>> ext;
+};
+
+template <int dim>
+void ExtensionGridDescription<dim>::reinit(Triangulation<dim>& tria) {
+    prm.enter_subsection("geometry");
+    ext->populate_triangulation(tria, prm);
+    prm.leave_subsection();
+}
+
 /**
  * Description of a deal.II
  * [subdivided_hyper_rectangle](https://www.dealii.org/developer/doxygen/deal.II/namespaceGridGenerator.html#ac76417d7404b75cf53c732f456e6e971)
@@ -94,25 +125,6 @@ class HyperRectangleDescription : public GridDescription<dim> {
     Point<dim> left;
     Point<dim> right;
     std::string periodic_dims;
-};
-
-/**
- */
-template <int dim>
-class ForwardFacingStepDescription : public GridDescription<dim> {
-   public:
-    ForwardFacingStepDescription(unsigned int refinement_factor)
-        : refinement_factor(refinement_factor) {}
-
-    static void declare_parameters(ParameterHandler& prm);
-
-    static std::unique_ptr<ForwardFacingStepDescription<dim>> create_from_parameters(
-        ParameterHandler& prm);
-
-    void reinit(Triangulation<dim>& tri) override;
-
-   private:
-    unsigned int refinement_factor;
 };
 
 }  // namespace warpii

@@ -7,7 +7,7 @@ set fe_degree = 4
 
 set n_boundaries = 6
 subsection geometry
-    set GridType = ForwardFacingStep
+    set GridType = Extension
     set RefinementFactor = 2
 end
 

@@ -8,3 +8,13 @@ warpii.user.env
 CMakeUserPresets.json
 compile_commands.json
 workdir
+
+# Allow only .cc, .inp and Makefiles inside of examples
+examples/*
+!examples/*/
+examples/*/*
+!examples/*/*/
+examples/*/*/*
+!examples/**/*.inp
+!examples/**/*.cc
+!examples/**/Makefile

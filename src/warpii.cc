@@ -1,31 +1,31 @@
-#include <cstdio>
+#include "warpii.h"
+
 #include <deal.II/base/parameter_handler.h>
 #include <deal.II/base/patterns.h>
+
+#include <cstdio>
 #include <iostream>
 #include <sstream>
-#include "warpii.h"
-#include "grid.h"
+
 #include "five_moment/five_moment.h"
-#include "opts.h"
-#include "wrapper.h"
 #include "fpe.h"
+#include "grid.h"
+#include "opts.h"
 #include "utilities.h"
+#include "wrapper.h"
 
 namespace warpii {
 using namespace dealii;
 
-char* getCmdOption(char ** begin, char ** end, const std::string & option)
-{
-    char ** itr = std::find(begin, end, option);
-    if (itr != end && ++itr != end)
-    {
+char *getCmdOption(char **begin, char **end, const std::string &option) {
+    char **itr = std::find(begin, end, option);
+    if (itr != end && ++itr != end) {
         return *itr;
     }
     return 0;
 }
 
-bool cmdOptionExists(char** begin, char** end, const std::string& option)
-{
+bool cmdOptionExists(char **begin, char **end, const std::string &option) {
     return std::find(begin, end, option) != end;
 }
 
@@ -41,7 +41,7 @@ WarpiiOpts parse_opts(int argc, char **argv) {
 
     bool set_input = false;
     for (size_t i = 0; i < all_args.size(); i++) {
-        auto& arg = all_args.at(i);
+        auto &arg = all_args.at(i);
         if (arg == "--help" || arg == "-h") {
             opts.help = true;
             break;
@@ -50,6 +50,7 @@ WarpiiOpts parse_opts(int argc, char **argv) {
         } else if (arg == "--setup-only") {
             opts.setup_only = true;
         } else {
+            opts.input_is_from_file = true;
             opts.input = arg;
             set_input = true;
         }
@@ -69,9 +70,15 @@ Warpii Warpii::create_from_cli(int argc, char **argv) {
     return Warpii(opts);
 }
 
+Warpii Warpii::create_from_cli(int argc, char **argv,
+                               std::shared_ptr<Extension> extension) {
+    WarpiiOpts opts = parse_opts(argc, argv);
+    return Warpii(opts, std::move(extension));
+}
+
 // Options are specified in the docopt format: http://docopt.org/
 void Warpii::print_help(bool to_err) {
-    auto& stream = to_err ? std::cerr : std::cout;
+    auto &stream = to_err ? std::cerr : std::cout;
     stream << R"(
 WarpII: A collection of plasma codes.
 
@@ -100,7 +107,8 @@ void Warpii::load_input_from_file() {
     } else {
         std::ifstream file(opts.input);
         if (!file.is_open()) {
-            std::cerr << "Could not open requested input file <" << opts.input << "> for reading." << std::endl;
+            std::cerr << "Could not open requested input file <" << opts.input
+                      << "> for reading." << std::endl;
             Warpii::print_help();
             exit(1);
         }
@@ -110,7 +118,13 @@ void Warpii::load_input_from_file() {
 }
 
 void Warpii::setup() {
-    AssertThrow(!setup_complete, ExcMessage("Cannot call Warpii::setup twice on the same object."));
+    AssertThrow(
+        !setup_complete,
+        ExcMessage("Cannot call Warpii::setup twice on the same object."));
+
+    if (opts.input_is_from_file) {
+        load_input_from_file();
+    }
 
     if (opts.help) {
         Warpii::print_help();
@@ -121,8 +135,9 @@ void Warpii::setup() {
         enable_floating_point_exceptions();
     }
 
-    prm.declare_entry("WorkDir", "%A__%I", Patterns::Anything(), 
-R"(Format string for the working directory of the simulation.
+    prm.declare_entry(
+        "WorkDir", "%A__%I", Patterns::Anything(),
+        R"(Format string for the working directory of the simulation.
 
 Format specifier:
     - %A: The name of the application, e.g. "FiveMoment"
@@ -130,7 +145,8 @@ Format specifier:
           the input is taken from stdin, the specifier is replaced
           by the string "STDIN"
     )");
-    prm.declare_entry("Application", "FiveMoment", Patterns::Selection("FiveMoment|FPETest"));
+    prm.declare_entry("Application", "FiveMoment",
+                      Patterns::Selection("FiveMoment|FPETest"));
     prm.parse_input_from_string(input, "", true);
 
     create_and_move_to_subdir(format_workdir(prm, opts));
@@ -138,7 +154,8 @@ Format specifier:
     std::unique_ptr<ApplicationWrapper> app_wrapper;
     if (prm.get("Application") == "FPETest") {
         // A dummy application that immediately throws an FPE.
-        // The point is to exercise the enable_floating_point_exceptions() codepath in test.
+        // The point is to exercise the enable_floating_point_exceptions()
+        // codepath in test.
         std::cout << sqrt(-1.0) << std::endl;
         exit(0);
     }
@@ -146,18 +163,19 @@ Format specifier:
         app_wrapper = std::make_unique<five_moment::FiveMomentWrapper>();
     }
     app_wrapper->declare_parameters(prm);
-    auto new_ptr = app_wrapper->create_app(prm, input);
+    auto new_ptr = app_wrapper->create_app(prm, input, extension);
     this->app.swap(new_ptr);
     app->setup(opts);
 
     setup_complete = true;
 }
 
-void Warpii::run() { 
-    AssertThrow(!run_complete, ExcMessage("Cannot run the same warpii object twice."));
+void Warpii::run() {
+    AssertThrow(!run_complete,
+                ExcMessage("Cannot run the same warpii object twice."));
     if (!setup_complete) {
         setup();
-        
+
         if (opts.setup_only) {
             exit(0);
         }
@@ -173,9 +191,8 @@ void Warpii::run() {
     run_complete = true;
 }
 
-std::string format_workdir(
-        const ParameterHandler& prm,
-        const WarpiiOpts& opts) {
+std::string format_workdir(const ParameterHandler &prm,
+                           const WarpiiOpts &opts) {
     std::string result = prm.get("WorkDir");
     size_t pos = 0;
 
@@ -183,18 +200,17 @@ std::string format_workdir(
     // Loop until all occurrences of "%A" are replaced
     while ((pos = result.find("%A", pos)) != std::string::npos) {
         result.replace(pos, 2, app);
-        pos += app.length(); // Move past the last replaced occurrence
+        pos += app.length();  // Move past the last replaced occurrence
     }
 
     pos = 0;
-    std::string inp = (opts.input == "-") 
-        ? "STDIN" 
-        : remove_file_extension(opts.input);
+    std::string inp =
+        (opts.input == "-") ? "STDIN" : remove_file_extension(opts.input);
 
     // Loop until all occurrences of "%A" are replaced
     while ((pos = result.find("%I", pos)) != std::string::npos) {
         result.replace(pos, 2, inp);
-        pos += inp.length(); // Move past the last replaced occurrence
+        pos += inp.length();  // Move past the last replaced occurrence
     }
 
     return result;

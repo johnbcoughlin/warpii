@@ -6,6 +6,7 @@
 #include <deal.II/lac/la_parallel_vector.h>
 
 #include <fstream>
+#include <memory>
 
 #include "../app.h"
 #include "../grid.h"
@@ -15,6 +16,7 @@
 #include "postprocessor.h"
 #include "solution_vec.h"
 #include "species.h"
+#include "extension.h"
 
 using namespace dealii;
 
@@ -33,16 +35,29 @@ class FiveMomentWrapper : public ApplicationWrapper {
     void declare_parameters(ParameterHandler &prm) override;
 
     std::unique_ptr<AbstractApp> create_app(ParameterHandler &prm,
-                                            std::string input) override;
+                                            std::string input,
+                                            std::shared_ptr<warpii::Extension> extension) override;
 
    private:
     std::unique_ptr<AbstractFiveMomentApp> app;
 };
 
 template <int dim>
+std::shared_ptr<five_moment::Extension<dim>> unwrap_extension(std::shared_ptr<warpii::Extension> ext) {
+    if (!ext) {
+        return std::make_shared<five_moment::Extension<dim>>();
+    }
+    if (auto result = std::dynamic_pointer_cast<five_moment::Extension<dim>>(ext)) {
+        return result;
+    }
+    return std::make_shared<five_moment::Extension<dim>>();
+}
+
+template <int dim>
 class FiveMomentApp : public AbstractApp {
    public:
     FiveMomentApp(
+        std::shared_ptr<five_moment::Extension<dim>> extension,
         std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization,
         std::vector<std::shared_ptr<Species<dim>>> species,
         std::shared_ptr<Grid<dim>> grid,
@@ -53,7 +68,8 @@ class FiveMomentApp : public AbstractApp {
         double t_end,
         unsigned int n_writeout_frames
         )
-        : discretization(discretization),
+        : extension(extension),
+          discretization(discretization),
           species(species),
           grid(grid),
           solver(std::move(solver)),
@@ -64,10 +80,11 @@ class FiveMomentApp : public AbstractApp {
           n_writeout_frames(n_writeout_frames)
     {}
 
-    static void declare_parameters(ParameterHandler &prm);
+    static void declare_parameters(ParameterHandler &prm,
+            std::shared_ptr<five_moment::Extension<dim>> ext);
 
     static std::unique_ptr<FiveMomentApp<dim>> create_from_parameters(
-        ParameterHandler &prm);
+        ParameterHandler &prm, std::shared_ptr<five_moment::Extension<dim>> ext);
 
     void setup(WarpiiOpts opts) override;
 
@@ -84,6 +101,7 @@ class FiveMomentApp : public AbstractApp {
     void output_results(const unsigned int result_number);
 
    private:
+    std::shared_ptr<five_moment::Extension<dim>> extension;
     std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization;
     std::vector<std::shared_ptr<Species<dim>>> species;
     std::shared_ptr<Grid<dim>> grid;
@@ -96,7 +114,8 @@ class FiveMomentApp : public AbstractApp {
 };
 
 template <int dim>
-void FiveMomentApp<dim>::declare_parameters(ParameterHandler &prm) {
+void FiveMomentApp<dim>::declare_parameters(ParameterHandler &prm,
+        std::shared_ptr<five_moment::Extension<dim>> ext) {
     unsigned int n_species = prm.get_integer("n_species");
     unsigned int n_boundaries = prm.get_integer("n_boundaries");
 
@@ -109,7 +128,7 @@ void FiveMomentApp<dim>::declare_parameters(ParameterHandler &prm) {
         prm.leave_subsection();
     }
 
-    Grid<dim>::declare_parameters(prm);
+    Grid<dim>::declare_parameters(prm, ext);
 
     prm.declare_entry("fe_degree", "2", Patterns::Integer(1, 6),
             R"(
@@ -146,7 +165,8 @@ Defaults to 5/3, the value for simple ions with 3 degrees of freedom.
 
 template <int dim>
 std::unique_ptr<FiveMomentApp<dim>> FiveMomentApp<dim>::create_from_parameters(
-    ParameterHandler &prm) {
+    ParameterHandler &prm, 
+    std::shared_ptr<five_moment::Extension<dim>> ext) {
     unsigned int n_species = prm.get_integer("n_species");
     unsigned int n_boundaries = prm.get_integer("n_boundaries");
 
@@ -162,7 +182,8 @@ std::unique_ptr<FiveMomentApp<dim>> FiveMomentApp<dim>::create_from_parameters(
         prm.leave_subsection();
     }
 
-    auto grid = Grid<dim>::create_from_parameters(prm);
+    auto grid = Grid<dim>::create_from_parameters(prm, 
+            std::static_pointer_cast<GridExtension<dim>>(ext));
 
     unsigned int fe_degree = prm.get_integer("fe_degree");
     std::string fields_enabled_str = prm.get("fields_enabled");
@@ -182,7 +203,7 @@ std::unique_ptr<FiveMomentApp<dim>> FiveMomentApp<dim>::create_from_parameters(
     auto dg_solver = std::make_unique<FiveMomentDGSolver<dim>>(
         discretization, species, gas_gamma, t_end, n_nonmesh_unknowns);
 
-    auto app = std::make_unique<FiveMomentApp<dim>>(discretization, species,
+    auto app = std::make_unique<FiveMomentApp<dim>>(ext, discretization, species,
                                                     grid, std::move(dg_solver),
                                                     gas_gamma, 
                                                     fields_enabled,
@@ -210,10 +231,12 @@ FiveMomentDGSolver<dim> &FiveMomentApp<dim>::get_solver() {
 
 template <int dim>
 void FiveMomentApp<dim>::setup(WarpiiOpts) {
+    std::cout << "Setting up" << std::endl;
     grid->reinit();
     if (dim == 2) {
         grid->output_svg("grid.svg");
     }
+    std::cout << "Wrote out svg" << std::endl;
     solver->reinit();
     solver->project_initial_condition();
     output_results(0);

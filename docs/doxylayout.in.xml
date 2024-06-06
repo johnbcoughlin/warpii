@@ -3,6 +3,7 @@
     <tab type="mainpage" visible="yes" title="About"/>
     <tab type="user" url="@ref install" title="Installation instructions"/>
     <tab type="user" url="@ref first_simulation" title="Running a simple simulation"/>
+    <tab type="user" url="@ref extension_tutorial" title="Extending WarpII with C++"/>
 
     <tab type="usergroup" title="The Code" url="">
       <!-- <tab type="pages" visible="no" title="" intro=""/> -->

@@ -15,7 +15,6 @@ int main(int argc, char **argv) {
         deallog.depth_console(0);
 
         Warpii warpii_obj = Warpii::create_from_cli(argc, argv);
-        warpii_obj.load_input_from_file();
         warpii_obj.run();
 
     } catch (std::exception &exc) {

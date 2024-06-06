@@ -1,0 +1,61 @@
+get_target_property(EXT_LINK_LIBRARIES dummy_extension LINK_LIBRARIES)
+get_target_property(EXT_COMPILE_FLAGS_SEMICOLONS dummy_extension COMPILE_OPTIONS)
+get_target_property(EXT_LINK_FLAGS_SEMICOLONS dummy_extension LINK_OPTIONS)
+
+string(REPLACE ";" " " EXT_COMPILE_FLAGS "${EXT_COMPILE_FLAGS_SEMICOLONS}")
+string(REPLACE ";" " " EXT_LINK_FLAGS "${EXT_LINK_FLAGS_SEMICOLONS}")
+
+get_target_property(LIBWARPII_BINARY_DIR libwarpii BINARY_DIR)
+
+if(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+    set(CMAKE_COMPILE_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
+else()
+    set(CMAKE_COMPILE_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
+endif()
+
+get_target_property(TMP dummy_extension CMAKE_CXX_COMPILE_OBJECT)
+message("compile options: ${CMAKE_COMPILE_FLAGS}")
+message("more compile options: ${TMP}")
+
+
+set(MAKEFILE_CONTENT "\
+CC = ${CMAKE_C_COMPILER}
+CXX = ${CMAKE_CXX_COMPILER}
+COMPILE_FLAGS = ${EXT_COMPILE_FLAGS} ${CMAKE_COMPILE_FLAGS} -std=c++17
+LINK_FLAGS = ${EXT_LINK_FLAGS}
+
+SOURCES = \$(wildcard *.cc)
+OBJECTS = \$(SOURCES:.cc=.o)
+
+DEALII_INCLUDE_DIR = ${DEAL_II_PATH}/include
+DEALII_BUNDLED_INCLUDE_DIR = ${DEAL_II_PATH}/include/deal.II/bundled
+DEALII_LIB_DIR = ${DEAL_II_PATH}/lib
+
+MPI_INCLUDE_DIR = ${MPI_CXX_INCLUDE_DIRS}
+MPI_LIB = ${MPI_CXX_LIBRARIES}
+
+WARPII_LIB_DIR = ${LIBWARPII_BINARY_DIR}
+
+INCLUDES = -I\$(DEALII_INCLUDE_DIR) -I \$(DEALII_BUNDLED_INCLUDE_DIR) -I\$(MPI_INCLUDE_DIR)
+LIBRARIES = -L\$(DEALII_LIB_DIR) -L\$(WARPII_LIB_DIR)
+
+all: main
+
+main: \$(OBJECTS)
+\t\$(CXX) \$(COMPILE_FLAGS) -o \$@ \$^ -ldealii -llibwarpii -l\$(MPI_LIB) \$(INCLUDES) \$(LIBRARIES)
+
+%.o: %.cc
+\t\$(CXX) $(COMPILE_FLAGS) -c \$< -o \$@ \$(INCLUDES)
+
+clean:
+\trm -f \$(OBJECTS) \$(EXECUTABLE)
+
+.PHONY: all clean
+")
+
+file(GENERATE OUTPUT 
+    "Makefile.template.$<COMPILE_LANGUAGE>.$<CONFIG>" 
+    CONTENT
+    "${MAKEFILE_CONTENT}")
+
+
