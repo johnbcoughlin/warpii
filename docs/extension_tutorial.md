@@ -120,20 +120,24 @@ Let's recompile the file:
 ```
 
 We now need to supply an input file to the simulation.
+We'll set up an initially uniform flow field with uniform pressure.
+The velocity vector is everywhere equal to \f$ \mathbf{u} = (0.1, 0.1)^T \f$
+The circular wall at the center of the domain sets up a wave that propagates
+at the sound speed \f$ c = \sqrt{\gamma p / \rho} \approx 1.29 \f$.
 
 `plate_with_hole.inp`:
 
 ```
 set Application = FiveMoment
 set n_dims = 2
-set t_end = 1.00
+set t_end = 0.5
 set fields_enabled = false
 
 set fe_degree = 3
 
 subsection geometry
     set GridType = Extension
-    set GlobalRefinementLevels = 2
+    set GlobalRefinementLevels = 3
 end
 
 set n_boundaries = 5
@@ -141,8 +145,7 @@ set n_boundaries = 5
 subsection Species_1
     subsection InitialCondition
         set VariablesType = Primitive
-        set Function constants = pi=3.1415926535
-        set Function expression = 1 + 0.6 * sin(2*pi*(x+y)); 0.1; 0.1; 1.0
+        set Function expression = 1; 0.1; 0.1; 1.0
     end
 
     subsection BoundaryConditions
@@ -151,6 +154,22 @@ subsection Species_1
 end
 ```
 
+Notice that we had to specify the total number of boundaries in the domain,
+including periodic boundaries, and tell WarpII to use a reflecting wall boundary
+condition for boundary id 4, which is the circular hole wall.
+We specify 3rd-degree polynomials with the `fe_degree` option,
+and ask for 3 levels of global refinement, which means that the original mesh is
+refined by a factor of 8 in each direction.
+The resulting refined mesh looks like this:
+
+![plate_with_hole mesh, globally refined 3 times.](plate_with_hole.png){html: width=40%}
+
+To run the simulation, simply pass the input file to your `main` executable on the command line:
 ```
 > ./main plate_with_hole.inp
 ```
+
+This will create a directory `FiveMoment__plate_with_hole`, and output files.
+The output can be visualized in a program like Paraview.
+
+![circular sound wave propagating through plate_with_hole domain, plotted at t=[0.1, 0.3, 0.5]](circular_sound_wave_frames.png)
