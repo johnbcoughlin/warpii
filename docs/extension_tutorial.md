@@ -162,7 +162,7 @@ and ask for 3 levels of global refinement, which means that the original mesh is
 refined by a factor of 8 in each direction.
 The resulting refined mesh looks like this:
 
-![plate_with_hole mesh, globally refined 3 times.](plate_with_hole.png){html: width=40%}
+![plate_with_hole mesh, globally refined 3 times.](plate_with_hole_small.png)
 
 To run the simulation, simply pass the input file to your `main` executable on the command line:
 ```
