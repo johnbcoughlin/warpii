@@ -54,10 +54,10 @@ end
         warpii_obj.input = input.str();
         warpii_obj.run();
         auto& app = warpii_obj.get_app<five_moment::FiveMomentApp<1>>();
-        auto& disc = app.get_discretization();
         auto& soln = app.get_solution();
+        auto& helper = app.get_solution_helper();
 
-        double error = disc.compute_global_error(soln.mesh_sol, expected_density, 0);
+        double error = helper.compute_global_error(soln.mesh_sol, expected_density, 0);
         std::cout << "error = " << error << std::endl;
         errors.push_back(error);
     }

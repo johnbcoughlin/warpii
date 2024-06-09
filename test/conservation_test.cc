@@ -34,10 +34,10 @@ end
 
     warpii_obj.setup();
     auto& app = warpii_obj.get_app<five_moment::FiveMomentApp<1>>();
-    auto& disc = app.get_discretization();
     auto& soln = app.get_solution();
+    auto& helper = app.get_solution_helper();
 
-    auto ic_global_integral = disc.compute_global_integral(soln.mesh_sol, 0);
+    auto ic_global_integral = helper.compute_global_integral(soln.mesh_sol, 0);
     EXPECT_NEAR(ic_global_integral[0], 1.4, 1e-15);
     EXPECT_NEAR(ic_global_integral[1], 0.98 * 1.4, 1e-15);
 }
@@ -70,13 +70,13 @@ end
 
     warpii_obj.setup();
     auto& app = warpii_obj.get_app<five_moment::FiveMomentApp<1>>();
-    auto& disc = app.get_discretization();
     auto& soln = app.get_solution();
+    auto& helper = app.get_solution_helper();
 
-    auto ic_global_integral = disc.compute_global_integral(soln.mesh_sol, 0);
+    auto ic_global_integral = helper.compute_global_integral(soln.mesh_sol, 0);
 
     warpii_obj.run();
-    auto global_integral = disc.compute_global_integral(soln.mesh_sol, 0);
+    auto global_integral = helper.compute_global_integral(soln.mesh_sol, 0);
     for (unsigned int comp = 0; comp < 3; comp++) {
         EXPECT_NEAR(global_integral[comp], ic_global_integral[comp], 1e-13);
     }
@@ -121,13 +121,13 @@ end
 
     warpii_obj.setup();
     auto& app = warpii_obj.get_app<five_moment::FiveMomentApp<1>>();
-    auto& disc = app.get_discretization();
     auto& soln = app.get_solution();
+    auto& helper = app.get_solution_helper();
 
-    auto ic_global_integral = disc.compute_global_integral(soln.mesh_sol, 0);
+    auto ic_global_integral = helper.compute_global_integral(soln.mesh_sol, 0);
 
     warpii_obj.run();
-    auto global_integral = disc.compute_global_integral(soln.mesh_sol, 0);
+    auto global_integral = helper.compute_global_integral(soln.mesh_sol, 0);
     auto inflow_flux = soln.boundary_integrated_fluxes.at_boundary<1>(0);
     auto outflow_flux = soln.boundary_integrated_fluxes.at_boundary<1>(1);
     auto balance = global_integral + inflow_flux + outflow_flux;

@@ -14,7 +14,7 @@ void FiveMomentDGSolver<dim>::reinit() {
 template <int dim>
 void FiveMomentDGSolver<dim>::project_initial_condition() {
     for (unsigned int i = 0; i < species.size(); i++) {
-        discretization->project_fluid_quantities(
+        solution_helper.project_fluid_quantities(
             *species.at(i)->initial_condition, solution.mesh_sol, i);
     }
 }
@@ -40,6 +40,11 @@ void FiveMomentDGSolver<dim>::solve(TimestepCallback writeout_callback) {
 template <int dim>
 FiveMSolutionVec& FiveMomentDGSolver<dim>::get_solution() {
     return solution;
+}
+
+template <int dim>
+FiveMomentDGSolutionHelper<dim>& FiveMomentDGSolver<dim>::get_solution_helper() {
+    return solution_helper;
 }
 
 template class FiveMomentDGSolver<1>;

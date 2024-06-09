@@ -15,7 +15,7 @@
 
 #include "../dof_utils.h"
 #include "../utilities.h"
-#include "dg_discretization.h"
+#include "../nodal_dg/nodal_dg_discretization.h"
 #include "euler.h"
 #include "fluxes/subcell_finite_volume_flux.h"
 #include "solution_vec.h"
@@ -31,7 +31,7 @@ using namespace dealii;
 template <int dim>
 struct ScratchData {
     ScratchData(
-        const std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization)
+        const std::shared_ptr<NodalDGDiscretization<dim>> discretization)
         : fe_values(discretization->get_mapping(), discretization->get_fe(),
                     QGaussLobatto<dim>(), UpdateFlags::update_values) {}
 
@@ -43,7 +43,7 @@ struct CopyData {};
 
 template <int dim>
 FESeries::Legendre<dim> initialize_legendre(
-    FiveMomentDGDiscretization<dim>& discretization) {
+    NodalDGDiscretization<dim>& discretization) {
     unsigned int fe_degree = discretization.get_fe_degree();
     unsigned int Np = fe_degree + 1;
     std::vector<unsigned int> n_coefs_per_dim = {};
@@ -57,7 +57,7 @@ template <int dim>
 class FluidFluxESDGSEMOperator {
    public:
     FluidFluxESDGSEMOperator(
-        std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization,
+        std::shared_ptr<NodalDGDiscretization<dim>> discretization,
         double gas_gamma, std::vector<std::shared_ptr<Species<dim>>> species)
         : discretization(discretization),
           gas_gamma(gas_gamma),
@@ -72,8 +72,10 @@ class FluidFluxESDGSEMOperator {
     void perform_forward_euler_step(
         FiveMSolutionVec &dst, const FiveMSolutionVec &u,
         std::vector<FiveMSolutionVec> &sol_registers, const double dt,
-        const double t, const double alpha = 1.0,
-        const double beta = 0.0);
+        const double t, 
+        const double alpha = 1.0,
+        const double beta = 0.0,
+        const ZeroOutPolicy zero_out_policy=DO_NOT_ZERO_DST_VECTOR);
 
     double recommend_dt(const MatrixFree<dim, double> &mf,
                         const FiveMSolutionVec &sol);
@@ -133,7 +135,7 @@ class FluidFluxESDGSEMOperator {
         const FullMatrix<double> &Q, unsigned int d,
         VectorizedArray<double> alpha, bool log = false) const;
 
-    std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization;
+    std::shared_ptr<NodalDGDiscretization<dim>> discretization;
     double gas_gamma;
     unsigned int n_species;
     std::vector<std::shared_ptr<Species<dim>>> species;
@@ -146,7 +148,8 @@ template <int dim>
 void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
     FiveMSolutionVec &dst, const FiveMSolutionVec &u,
     std::vector<FiveMSolutionVec> &sol_registers, const double dt,
-    const double t, const double alpha, const double beta) {
+    const double t, const double alpha, const double beta,
+    const ZeroOutPolicy zero_out_policy) {
     using Iterator = typename DoFHandler<1>::active_cell_iterator;
 
     auto Mdudt_register = sol_registers.at(0);
@@ -199,7 +202,7 @@ void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
 
         discretization->mf.loop(
             cell_operation, face_operation, boundary_operation,
-            Mdudt_register.mesh_sol, u.mesh_sol, true,
+            Mdudt_register.mesh_sol, u.mesh_sol, zero_out_policy == DO_ZERO_DST_VECTOR,
             MatrixFree<dim, double>::DataAccessOnFaces::values,
             MatrixFree<dim, double>::DataAccessOnFaces::values);
     }

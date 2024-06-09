@@ -6,12 +6,13 @@ add_library(libwarpii
     grid_descriptions.cc
     grid_generation.cc
     dof_utils.cc
-    five_moment/dg_discretization.cc
+    five_moment/dg_solution_helper.cc
     five_moment/dg_solver.cc
     five_moment/five_moment.cc
     five_moment/solution_vec.cc
     five_moment/species.cc
     five_moment/species_func.cc
+    nodal_dg/nodal_dg_discretization.cc
     fpe.cc
     utilities.cc
     )

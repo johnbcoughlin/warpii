@@ -15,11 +15,11 @@
 
 #include "../../dof_utils.h"
 #include "../../utilities.h"
-#include "../dg_discretization.h"
 #include "../euler.h"
 #include "../solution_vec.h"
 #include "../species.h"
 #include "jacobian_utils.h"
+#include "../../nodal_dg/nodal_dg_discretization.h"
 
 namespace warpii {
 namespace five_moment {
@@ -28,7 +28,7 @@ template <int dim>
 class SubcellFiniteVolumeFlux {
    public:
     SubcellFiniteVolumeFlux(
-        FiveMomentDGDiscretization<dim>& discretization,
+        NodalDGDiscretization<dim>& discretization,
         double gas_gamma)
         : Np(discretization.get_fe_degree() + 1),
           gas_gamma(gas_gamma),
