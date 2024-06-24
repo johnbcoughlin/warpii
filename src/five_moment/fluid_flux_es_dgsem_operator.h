@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/variant/variant.hpp>
 #include <deal.II/base/array_view.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/symmetric_tensor.h>
@@ -22,6 +23,7 @@
 #include "species.h"
 #include "fluxes/split_form_volume_flux.h"
 #include "fluxes/jacobian_utils.h"
+#include "../dgsem/persson_peraire_shock_indicator.h"
 
 namespace warpii {
 namespace five_moment {
@@ -42,18 +44,6 @@ struct ScratchData {
 struct CopyData {};
 
 template <int dim>
-FESeries::Legendre<dim> initialize_legendre(
-    NodalDGDiscretization<dim>& discretization) {
-    unsigned int fe_degree = discretization.get_fe_degree();
-    unsigned int Np = fe_degree + 1;
-    std::vector<unsigned int> n_coefs_per_dim = {};
-    n_coefs_per_dim.push_back(Np);
-    FESeries::Legendre<dim> legendre(n_coefs_per_dim, discretization.get_dummy_fe_collection(), 
-            discretization.get_dummy_q_collection(), 0);
-    return legendre;
-}
-
-template <int dim>
 class FluidFluxESDGSEMOperator {
    public:
     FluidFluxESDGSEMOperator(
@@ -65,7 +55,7 @@ class FluidFluxESDGSEMOperator {
           species(species),
           split_form_volume_flux(discretization, gas_gamma),
           subcell_finite_volume_flux(*discretization, gas_gamma),
-          legendre(initialize_legendre(*discretization))
+          shock_indicator(discretization)
     {
     }
 
@@ -110,12 +100,6 @@ class FluidFluxESDGSEMOperator {
         const MatrixFree<dim, double> &mf,
         const LinearAlgebra::distributed::Vector<double> &sol) const;
 
-    /**
-     * Compute the troubled cell indicator of Persson and Peraire,
-     * "Sub-Cell Shock Capturing for Discontinuous Galerkin Methods"
-     *
-     * @param phi: Should have already been reinited for the current cell
-     */
     VectorizedArray<double> shock_indicators(
         const FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
         FESeries::Legendre<dim> &legendre);
@@ -141,7 +125,7 @@ class FluidFluxESDGSEMOperator {
     std::vector<std::shared_ptr<Species<dim>>> species;
     SplitFormVolumeFlux<dim> split_form_volume_flux;
     SubcellFiniteVolumeFlux<dim> subcell_finite_volume_flux;
-    FESeries::Legendre<dim> legendre;
+    PerssonPeraireShockIndicator<dim> shock_indicator;
 };
 
 template <int dim>
@@ -299,8 +283,18 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
             phi_reader.gather_evaluate(src, EvaluationFlags::values);
             phi_reader.read_dof_values(src);
 
-            VectorizedArray<double> alpha =
-                shock_indicators(phi_reader, legendre);
+            VectorizedArray<double> alpha;
+            Vector<double> p_times_rho;
+            p_times_rho.reinit(phi.dofs_per_component);
+            for (unsigned int lane = 0; lane < VectorizedArray<double>::size(); lane++) {
+                for (unsigned int dof = 0; dof < phi_reader.dofs_per_component; dof++) {
+                    const auto q_dof = phi_reader.get_dof_value(dof);
+                    const auto rho = q_dof[0][lane];
+                    const auto p = euler_pressure<dim>(q_dof, gas_gamma)[lane];
+                    p_times_rho(dof) = p * rho;
+                }
+                alpha[lane] = shock_indicator.compute_shock_indicator(p_times_rho);
+            }
 
             split_form_volume_flux.calculate_flux(dst, phi, phi_reader, alpha, false);
             subcell_finite_volume_flux.calculate_flux(dst, phi, phi_reader, alpha, false);
