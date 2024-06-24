@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/variant/variant.hpp>
 #include <deal.II/base/array_view.h>
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/base/symmetric_tensor.h>
@@ -22,6 +23,7 @@
 #include "species.h"
 #include "fluxes/split_form_volume_flux.h"
 #include "fluxes/jacobian_utils.h"
+#include "../dgsem/persson_peraire_shock_indicator.h"
 
 namespace warpii {
 namespace five_moment {
@@ -42,18 +44,6 @@ struct ScratchData {
 struct CopyData {};
 
 template <int dim>
-FESeries::Legendre<dim> initialize_legendre(
-    NodalDGDiscretization<dim>& discretization) {
-    unsigned int fe_degree = discretization.get_fe_degree();
-    unsigned int Np = fe_degree + 1;
-    std::vector<unsigned int> n_coefs_per_dim = {};
-    n_coefs_per_dim.push_back(Np);
-    FESeries::Legendre<dim> legendre(n_coefs_per_dim, discretization.get_dummy_fe_collection(), 
-            discretization.get_dummy_q_collection(), 0);
-    return legendre;
-}
-
-template <int dim>
 class FluidFluxESDGSEMOperator {
    public:
     FluidFluxESDGSEMOperator(
@@ -65,7 +55,7 @@ class FluidFluxESDGSEMOperator {
           species(species),
           split_form_volume_flux(discretization, gas_gamma),
           subcell_finite_volume_flux(*discretization, gas_gamma),
-          legendre(initialize_legendre(*discretization))
+          shock_indicator(discretization)
     {
     }
 
@@ -110,16 +100,6 @@ class FluidFluxESDGSEMOperator {
         const MatrixFree<dim, double> &mf,
         const LinearAlgebra::distributed::Vector<double> &sol) const;
 
-    /**
-     * Compute the troubled cell indicator of Persson and Peraire,
-     * "Sub-Cell Shock Capturing for Discontinuous Galerkin Methods"
-     *
-     * @param phi: Should have already been reinited for the current cell
-     */
-    VectorizedArray<double> shock_indicators(
-        const FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
-        FESeries::Legendre<dim> &legendre);
-
     void calculate_high_order_EC_flux(
         LinearAlgebra::distributed::Vector<double> &dst,
         FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
@@ -141,7 +121,7 @@ class FluidFluxESDGSEMOperator {
     std::vector<std::shared_ptr<Species<dim>>> species;
     SplitFormVolumeFlux<dim> split_form_volume_flux;
     SubcellFiniteVolumeFlux<dim> subcell_finite_volume_flux;
-    FESeries::Legendre<dim> legendre;
+    PerssonPeraireShockIndicator<dim> shock_indicator;
 };
 
 template <int dim>
@@ -299,8 +279,18 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
             phi_reader.gather_evaluate(src, EvaluationFlags::values);
             phi_reader.read_dof_values(src);
 
-            VectorizedArray<double> alpha =
-                shock_indicators(phi_reader, legendre);
+            VectorizedArray<double> alpha;
+            Vector<double> p_times_rho;
+            p_times_rho.reinit(phi.dofs_per_component);
+            for (unsigned int lane = 0; lane < VectorizedArray<double>::size(); lane++) {
+                for (unsigned int dof = 0; dof < phi_reader.dofs_per_component; dof++) {
+                    const auto q_dof = phi_reader.get_dof_value(dof);
+                    const auto rho = q_dof[0][lane];
+                    const auto p = euler_pressure<dim>(q_dof, gas_gamma)[lane];
+                    p_times_rho(dof) = p * rho;
+                }
+                alpha[lane] = shock_indicator.compute_shock_indicator(p_times_rho);
+            }
 
             split_form_volume_flux.calculate_flux(dst, phi, phi_reader, alpha, false);
             subcell_finite_volume_flux.calculate_flux(dst, phi, phi_reader, alpha, false);
@@ -516,104 +506,6 @@ double FluidFluxESDGSEMOperator<dim>::compute_cell_transport_speed(
     max_transport = Utilities::MPI::max(max_transport, MPI_COMM_WORLD);
 
     return max_transport;
-}
-
-template <int dim>
-VectorizedArray<double> FluidFluxESDGSEMOperator<dim>::shock_indicators(
-    const FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
-    FESeries::Legendre<dim> &legendre) {
-    unsigned int Np = discretization->get_fe_degree() + 1;
-    AssertThrow(Np >= 2, ExcMessage("Shock indicators are not supported nor "
-                                    "needed for P0 polynomial bases"));
-
-    VectorizedArray<double> alphas;
-
-    Vector<double> p_times_rho;
-    p_times_rho.reinit(phi.dofs_per_component);
-    for (unsigned int lane = 0; lane < VectorizedArray<double>::size();
-         lane++) {
-        for (unsigned int dof = 0; dof < phi.dofs_per_component; dof++) {
-            const auto q_dof = phi.get_dof_value(dof);
-            const auto rho = q_dof[0][lane];
-            const auto p = euler_pressure<dim>(q_dof, gas_gamma)[lane];
-            p_times_rho(dof) = p * rho;
-        }
-
-        TableIndices<dim> sizes;
-        for (unsigned int d = 0; d < dim; d++) {
-            sizes[d] = Np;
-        }
-        Table<dim, double> legendre_coefs;
-        legendre_coefs.reinit(sizes);
-        legendre.calculate(p_times_rho, 0, legendre_coefs);
-
-        /**
-         * It is unclear from Hennemann et al. how to cut off the modal energy
-         * for higher dimensional functions.
-         *
-         * Based on what Trixi.jl does, we apply a cutoff to the /maximum/
-         * single variable degree of a mode. So rather than cutting off the tip
-         * of the modal cube, we cut off the whole degree-N shell.
-         */
-        const std::function<std::pair<bool, unsigned int>(
-            const TableIndices<dim> &index)>
-            group_leading_coefs = [&Np](const TableIndices<dim> &index)
-            -> std::pair<bool, unsigned int> {
-            std::size_t max_degree = 0;
-            for (unsigned int d = 0; d < dim; d++) {
-                max_degree = std::max(index[d], max_degree);
-            }
-            if (max_degree < Np - 1) {
-                return std::make_pair(true, 0);
-            } else if (max_degree == Np - 1) {
-                return std::make_pair(true, 1);
-            } else if (max_degree == Np) {
-                return std::make_pair(true, 2);
-            } else {
-                // This should be impossible
-                Assert(false, ExcMessage("Unreachable"));
-                return std::make_pair(false, 3);
-            }
-        };
-        const std::pair<std::vector<unsigned int>, std::vector<double>>
-            grouped_coefs = FESeries::process_coefficients(
-                legendre_coefs, group_leading_coefs,
-                VectorTools::NormType::L2_norm);
-        double total_energy = 0.;
-        double total_energy_minus_1 = 0.;
-        double top_mode = 0.;
-        double top_mode_minus_1 = 0.;
-        for (unsigned int i = 0; i < grouped_coefs.first.size(); i++) {
-            unsigned int predicate = grouped_coefs.first[i];
-            double sqrt_energy = grouped_coefs.second[i];
-            double energy = sqrt_energy * sqrt_energy;
-            if (predicate == 0) {
-                total_energy += energy;
-                total_energy_minus_1 += energy;
-            } else if (predicate == 1) {
-                top_mode_minus_1 += energy;
-                total_energy_minus_1 += energy;
-                total_energy += energy;
-            } else if (predicate == 2) {
-                top_mode += energy;
-                total_energy += energy;
-            }
-        }
-        double E = std::max(top_mode / total_energy,
-                            top_mode_minus_1 / total_energy_minus_1);
-        double T = 0.5 * std::pow(10.0, -1.8 * std::pow(Np, 0.25));
-        double s = 9.21024;
-        double alpha = 1.0 / (1.0 + std::exp(-s / T * (E - T)));
-        double alpha_max = 0.5;
-
-        if (alpha < 1e-3) {
-            alpha = 0.0;
-        } else if (alpha > alpha_max) {
-            alpha = alpha_max;
-        }
-        alphas[lane] = alpha;
-    }
-    return alphas;
 }
 
 }  // namespace five_moment
