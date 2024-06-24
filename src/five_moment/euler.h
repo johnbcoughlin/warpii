@@ -8,11 +8,12 @@ namespace five_moment {
 using namespace dealii;
 
 /**
- * Compute the velocity from the conserved variables
+ * Compute the velocity from the conserved variables.
+ * Returns the first `dim` components of the velocity.
  */
 template <int dim, typename Number>
 inline DEAL_II_ALWAYS_INLINE Tensor<1, dim, Number> euler_velocity(
-    const Tensor<1, dim + 2, Number> &conserved_variables) {
+    const Tensor<1, 5, Number> &conserved_variables) {
     const Number inverse_density = Number(1.) / conserved_variables[0];
 
     Tensor<1, dim, Number> velocity;
@@ -25,36 +26,38 @@ inline DEAL_II_ALWAYS_INLINE Tensor<1, dim, Number> euler_velocity(
 
 /**
  * Compute Euler pressure from conserved variables
+ *
+ * TODO: remove dim template parameter
  */
 template <int dim, typename Number>
 inline DEAL_II_ALWAYS_INLINE Number euler_pressure(
-    const Tensor<1, dim + 2, Number> &conserved_variables, double gamma) {
+    const Tensor<1, 5, Number> &conserved_variables, double gamma) {
     const Number rho = conserved_variables[0];
     Number squared_momentum = Number(0.);
-    for (unsigned int d = 0; d < dim; d++) {
+    for (unsigned int d = 0; d < 3; d++) {
         Number p_d = conserved_variables[d + 1];
         squared_momentum += p_d * p_d;
     }
     const Number kinetic_energy = squared_momentum / (2. * rho);
-    const Number total_energy = conserved_variables[dim + 1];
+    const Number total_energy = conserved_variables[4];
     return (gamma - 1) * (total_energy - kinetic_energy);
 }
 
 template <int dim, typename Number>
-inline DEAL_II_ALWAYS_INLINE Tensor<1, dim + 2, dealii::Tensor<1, dim, Number>>
-euler_flux(const Tensor<1, dim + 2, Number> &q, double gamma) {
+inline DEAL_II_ALWAYS_INLINE Tensor<1, 5, dealii::Tensor<1, dim, Number>>
+euler_flux(const Tensor<1, 5, Number> &q, double gamma) {
     const Tensor<1, dim, Number> velocity = euler_velocity<dim>(q);
     const Number pressure = euler_pressure<dim>(q, gamma);
 
-    Tensor<1, dim + 2, Tensor<1, dim, Number>> flux;
+    Tensor<1, 5, Tensor<1, dim, Number>> flux;
     for (unsigned int d = 0; d < dim; d++) {
         flux[0][d] = q[d + 1];
-        for (unsigned int e = 0; e < dim; e++) {
+        for (unsigned int e = 0; e < 3; e++) {
             flux[e + 1][d] = q[e + 1] * velocity[d];
         }
         // Diagonal pressure tensor.
         flux[d + 1][d] += pressure;
-        flux[dim + 1][d] = velocity[d] * (q[dim + 1] + pressure);
+        flux[4][d] = velocity[d] * (q[4] + pressure);
     }
     return flux;
 }
@@ -63,9 +66,9 @@ euler_flux(const Tensor<1, dim + 2, Number> &q, double gamma) {
  * Lax-Friedrichs flux
  */
 template <int dim, typename Number>
-inline DEAL_II_ALWAYS_INLINE Tensor<1, dim + 2, Number> euler_numerical_flux(
-    const Tensor<1, dim + 2, Number> &q_in,
-    const Tensor<1, dim + 2, Number> &q_out,
+inline DEAL_II_ALWAYS_INLINE Tensor<1, 5, Number> euler_numerical_flux(
+    const Tensor<1, 5, Number> &q_in,
+    const Tensor<1, 5, Number> &q_out,
     const Tensor<1, dim, Number> &outward_normal, double gamma) {
     const auto u_in = euler_velocity<dim>(q_in);
     const auto u_out = euler_velocity<dim>(q_out);
@@ -89,9 +92,9 @@ inline DEAL_II_ALWAYS_INLINE Tensor<1, dim + 2, Number> euler_numerical_flux(
  * Central flux
  */
 template <int dim, typename Number>
-inline DEAL_II_ALWAYS_INLINE Tensor<1, dim + 2, Tensor<1, dim, Number>> euler_central_flux(
-    const Tensor<1, dim + 2, Number> &q_in,
-    const Tensor<1, dim + 2, Number> &q_out,
+inline DEAL_II_ALWAYS_INLINE Tensor<1, 5, Tensor<1, dim, Number>> euler_central_flux(
+    const Tensor<1, 5, Number> &q_in,
+    const Tensor<1, 5, Number> &q_out,
     double gamma) {
     return euler_flux<dim>((q_in + q_out) / 2.0, gamma);
 }
@@ -123,7 +126,7 @@ inline DEAL_II_ALWAYS_INLINE Number ln_avg(Number a, Number b) {
 
 template <int dim, typename Number>
 inline DEAL_II_ALWAYS_INLINE Number euler_beta(
-        const Tensor<1, dim+2, Number> q, 
+        const Tensor<1, 5, Number> q, 
         const Number p) {
     const Number rho = q[0];
     return rho / (2.0 * p);
@@ -134,39 +137,39 @@ inline DEAL_II_ALWAYS_INLINE Number euler_beta(
  */
 template <int dim, typename Number>
 Number euler_thermodynamic_specific_entropy(
-        const Tensor<1, dim+2, Number> q, double gamma) {
+        const Tensor<1, 5, Number> q, double gamma) {
     return std::log(euler_pressure<dim>(q, gamma)) - gamma * std::log(q[0]);
 }
 
 template <int dim, typename Number>
 Number euler_mathematical_entropy(
-        const Tensor<1, dim+2, Number> q, double gamma) {
+        const Tensor<1, 5, Number> q, double gamma) {
     Number s = euler_thermodynamic_specific_entropy<dim>(q, gamma);
     return -s * q[0] / (gamma - 1.0);
 }
 
 template <int dim, typename Number>
-Tensor<1, dim+2, Number> euler_entropy_variables(
-        const Tensor<1, dim+2, Number> q, double gamma) {
+Tensor<1, 5, Number> euler_entropy_variables(
+        const Tensor<1, 5, Number> q, double gamma) {
     Number beta = euler_beta<dim>(q, euler_pressure<dim>(q, gamma));
     Number s = euler_thermodynamic_specific_entropy<dim>(q, gamma);
 
-    Tensor<1, dim, Number> u = euler_velocity<dim>(q);
+    Tensor<1, 3, Number> u = euler_velocity<3>(q);
     Number u2 = Number(0.0);
-    for (unsigned int d = 0; d < dim; d++) {
+    for (unsigned int d = 0; d < 3; d++) {
         u2 += u[d]*u[d];
     }
-    Tensor<1, dim+2, Number> w;
+    Tensor<1, 5, Number> w;
     w[0] = (gamma - s) / (gamma - 1.0) - beta * u2;
-    for (unsigned int d = 0; d < dim; d++) {
+    for (unsigned int d = 0; d < 3; d++) {
         w[d+1] = 2*beta * u[d];
     }
-    w[dim+1] = -2*beta;
+    w[4] = -2*beta;
     return w;
 }
 
 template <int dim, typename Number>
-Tensor<1, dim, Number> euler_entropy_flux(const Tensor<1, dim+2, Number> state, double gamma) {
+Tensor<1, dim, Number> euler_entropy_flux(const Tensor<1, 5, Number> state, double gamma) {
     Tensor<1, dim, Number> q;
     Number rho = state[0];
     Number s = euler_thermodynamic_specific_entropy<dim>(state, gamma);
@@ -181,9 +184,9 @@ Tensor<1, dim, Number> euler_entropy_flux(const Tensor<1, dim+2, Number> state, 
  * Chandrashekar
  */
 template <int dim, typename Number>
-inline DEAL_II_ALWAYS_INLINE Tensor<1, dim+2, Tensor<1, dim, Number>> euler_CH_EC_flux(
-        const Tensor<1, dim+2, Number> &q_j,
-        const Tensor<1, dim+2, Number> &q_l,
+inline DEAL_II_ALWAYS_INLINE Tensor<1, 5, Tensor<1, dim, Number>> euler_CH_EC_flux(
+        const Tensor<1, 5, Number> &q_j,
+        const Tensor<1, 5, Number> &q_l,
         double gamma) {
     const Number p_j = euler_pressure<dim>(q_j, gamma);
     const Number beta_j = euler_beta<dim>(q_j, p_j);
@@ -194,32 +197,32 @@ inline DEAL_II_ALWAYS_INLINE Tensor<1, dim+2, Tensor<1, dim, Number>> euler_CH_E
     const Number beta_ln = ln_avg(beta_j, beta_l);
 
     const Number rho_j = q_j[0];
-    const auto u_j = euler_velocity<dim>(q_j);
+    const auto u_j = euler_velocity<3>(q_j);
     const Number rho_l = q_l[0];
-    const auto u_l = euler_velocity<dim>(q_l);
+    const auto u_l = euler_velocity<3>(q_l);
     const Number rho_ln = ln_avg(rho_j, rho_l);
 
     const Number rho_avg = 0.5 * (rho_j + rho_l);
-    const Tensor<1, dim, Number> u_avg = 0.5 * (u_j + u_l);
+    const Tensor<1, 3, Number> u_avg = 0.5 * (u_j + u_l);
 
-    const Tensor<1, dim, Number> u2_j = componentwise_product(u_j, u_j);
-    const Tensor<1, dim, Number> u2_l = componentwise_product(u_l, u_l);
-    const Tensor<1, dim, Number> u2_avg = 0.5 * (u2_j + u2_l);
-    const Tensor<1, dim, Number> u_avg_2 = componentwise_product(u_avg, u_avg);
+    const Tensor<1, 3, Number> u2_j = componentwise_product(u_j, u_j);
+    const Tensor<1, 3, Number> u2_l = componentwise_product(u_l, u_l);
+    const Tensor<1, 3, Number> u2_avg = 0.5 * (u2_j + u2_l);
+    const Tensor<1, 3, Number> u_avg_2 = componentwise_product(u_avg, u_avg);
 
     const Number p_hat = rho_avg / (2.0 * beta_avg);
     const Number h_hat = 1.0 / (2.0 * beta_ln * (gamma - 1.0)) - 
         0.5 * sum(u2_avg) +
         p_hat / rho_ln + sum(u_avg_2);
 
-    Tensor<1, dim+2, Tensor<1, dim, Number>> result;
+    Tensor<1, 5, Tensor<1, dim, Number>> result;
     for (unsigned int d = 0; d < dim; d++) {
         result[0][d] = rho_ln * u_avg[d];
-        for (unsigned int e = 0; e < dim; e++) {
+        for (unsigned int e = 0; e < 3; e++) {
             result[e+1][d] = rho_ln * u_avg[d] * u_avg[e];
         }
         result[d+1][d] += p_hat;
-        result[dim+1][d] = rho_ln * u_avg[d] * h_hat;
+        result[4][d] = rho_ln * u_avg[d] * h_hat;
     }
     return result;
 }
@@ -227,9 +230,9 @@ inline DEAL_II_ALWAYS_INLINE Tensor<1, dim+2, Tensor<1, dim, Number>> euler_CH_E
 // q_l is the out state
 // q_j is the in state
 template <int dim, typename Number>
-inline DEAL_II_ALWAYS_INLINE Tensor<1, dim+2, Number> euler_CH_entropy_dissipating_flux(
-        const Tensor<1, dim+2, Number> &q_j,
-        const Tensor<1, dim+2, Number> &q_l,
+inline DEAL_II_ALWAYS_INLINE Tensor<1, 5, Number> euler_CH_entropy_dissipating_flux(
+        const Tensor<1, 5, Number> &q_j,
+        const Tensor<1, 5, Number> &q_l,
         const Tensor<1, dim, Number> &outward_normal,
         double gamma) {
     const Number p_j = euler_pressure<dim>(q_j, gamma);
@@ -240,21 +243,21 @@ inline DEAL_II_ALWAYS_INLINE Tensor<1, dim+2, Number> euler_CH_entropy_dissipati
     const Number beta_ln = ln_avg(beta_j, beta_l);
 
     const Number rho_j = q_j[0];
-    const auto u_j = euler_velocity<dim>(q_j);
+    const auto u_j = euler_velocity<3>(q_j);
     const Number rho_l = q_l[0];
-    const auto u_l = euler_velocity<dim>(q_l);
+    const auto u_l = euler_velocity<3>(q_l);
 
     const Number rho_avg = 0.5 * (rho_j + rho_l);
-    const Tensor<1, dim, Number> u_avg = 0.5 * (u_j + u_l);
+    const Tensor<1, 3, Number> u_avg = 0.5 * (u_j + u_l);
 
-    const Tensor<1, dim, Number> u2_j = componentwise_product(u_j, u_j);
-    const Tensor<1, dim, Number> u2_l = componentwise_product(u_l, u_l);
+    const Tensor<1, 3, Number> u2_j = componentwise_product(u_j, u_j);
+    const Tensor<1, 3, Number> u2_l = componentwise_product(u_l, u_l);
 
     auto flux = euler_CH_EC_flux<dim>(q_j, q_l, gamma) * outward_normal;
 
     const Number rho_jump = rho_l - rho_j;
-    const Tensor<1, dim, Number> rho_u_jump = rho_l * u_l - rho_j * u_j;
-    const Tensor<1, dim, Number> u_jump = u_l - u_j;
+    const Tensor<1, 3, Number> rho_u_jump = rho_l * u_l - rho_j * u_j;
+    const Tensor<1, 3, Number> u_jump = u_l - u_j;
 
     // Speeds of sound and local wavespeeds
     const Number c_j = std::sqrt(gamma * p_j / rho_j);
@@ -264,18 +267,18 @@ inline DEAL_II_ALWAYS_INLINE Tensor<1, dim+2, Number> euler_CH_entropy_dissipati
     const Number lambda_max = std::max(u2_j_norm + c_j, u2_l_norm + c_l);
 
     const Number beta_inv_jump = 1.0 / beta_l - 1.0 / beta_j;
-    const Tensor<1, dim, Number> u_prod = componentwise_product(u_j, u_l);
+    const Tensor<1, 3, Number> u_prod = componentwise_product(u_j, u_l);
 
-    const Tensor<1, dim, Number> u_jump_avg_prod = componentwise_product(u_jump, u_avg);
+    const Tensor<1, 3, Number> u_jump_avg_prod = componentwise_product(u_jump, u_avg);
 
     const Number energy_stab = (1.0 / (2.0 * (gamma - 1.0) * beta_ln) + 0.5*sum(u_prod)) * rho_jump +
         rho_avg * sum(u_jump_avg_prod) + rho_avg / (2.0*(gamma - 1.0)) * beta_inv_jump;
 
     flux[0] -= 0.5 * lambda_max * rho_jump;
-    for (unsigned int d = 0; d < dim; d++) {
+    for (unsigned int d = 0; d < 3; d++) {
         flux[d+1] -= 0.5 * lambda_max * rho_u_jump[d];
     }
-    flux[dim+1] -= 0.5 * lambda_max * energy_stab;
+    flux[4] -= 0.5 * lambda_max * energy_stab;
 
     return flux;
 }

@@ -47,8 +47,8 @@ class SplitFormVolumeFlux {
 
     void calculate_flux(
         LinearAlgebra::distributed::Vector<double> &dst,
-        FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
-        const FEEvaluation<dim, -1, 0, dim + 2, double> &phi_reader,
+        FEEvaluation<dim, -1, 0, 5, double> &phi,
+        const FEEvaluation<dim, -1, 0, 5, double> &phi_reader,
         VectorizedArray<double> alpha,
         bool log) const;
 
@@ -61,8 +61,8 @@ class SplitFormVolumeFlux {
 template <int dim>
 void SplitFormVolumeFlux<dim>::calculate_flux(
     LinearAlgebra::distributed::Vector<double> &dst,
-    FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
-    const FEEvaluation<dim, -1, 0, dim + 2, double> &phi_reader,
+    FEEvaluation<dim, -1, 0, 5, double> &phi,
+    const FEEvaluation<dim, -1, 0, 5, double> &phi_reader,
     VectorizedArray<double> alpha,
     bool /* log */) const {
     for (unsigned int d = 0; d < dim; d++) {
@@ -72,7 +72,7 @@ void SplitFormVolumeFlux<dim>::calculate_flux(
 
             unsigned int j = quad_point_1d_index<dim>(qj, Np, d);
             auto uj = phi_reader.get_value(qj);
-            Tensor<1, dim + 2, VectorizedArray<double>> flux_j;
+            Tensor<1, 5, VectorizedArray<double>> flux_j;
             for (unsigned int di = 0; di < dim; di++) {
                 flux_j[di] = 0.0;
             }

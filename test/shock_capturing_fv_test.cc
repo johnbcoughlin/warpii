@@ -33,6 +33,7 @@ subsection Species_1
         set Function constants = pi=3.1415926535
         set Function expression = 1 + 0.6 * sin(0.2*pi*(x)); \
                                   1 + 0.6 * sin(0.2*pi*(x)); \
+                                  0.0; 0.0; \
                                   0.5 * (1 + 0.6*sin(0.2*pi*(x))) + 1.5
     end
 end
@@ -47,8 +48,8 @@ end
 
   auto &mf = app.get_discretization().get_matrix_free();
 
-  FEEvaluation<1, -1, 0, 3, double> phi(mf, 0, 1, 0);
-  FEEvaluation<1, -1, 0, 3, double> phi_reader(mf, 0, 1, 0);
+  FEEvaluation<1, -1, 0, 5, double> phi(mf, 0, 1, 0);
+  FEEvaluation<1, -1, 0, 5, double> phi_reader(mf, 0, 1, 0);
 
   phi.reinit(0);
   phi_reader.reinit(0);
@@ -116,6 +117,7 @@ subsection Species_1
         set Function expression = 1 + 0.6 * sin(0.2*pi*(x+y)); \
                                   1 + 0.6 * sin(0.2*pi*(x+y)); \
                                   1 + 0.6 * sin(0.2*pi*(x+y)); \
+                                  0.0; \
                                   0.5 * (1 + 0.6*sin(0.2*pi*(x+y))) + 1.5
     end
 end
@@ -130,8 +132,8 @@ end
 
   auto &mf = app.get_discretization().get_matrix_free();
 
-  FEEvaluation<2, -1, 0, 4, double> phi(mf, 0, 1, 0);
-  FEEvaluation<2, -1, 0, 4, double> phi_reader(mf, 0, 1, 0);
+  FEEvaluation<2, -1, 0, 5, double> phi(mf, 0, 1, 0);
+  FEEvaluation<2, -1, 0, 5, double> phi_reader(mf, 0, 1, 0);
 
   phi.reinit(0);
   phi_reader.reinit(0);

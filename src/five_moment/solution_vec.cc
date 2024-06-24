@@ -11,8 +11,8 @@ namespace warpii {
             data.sadd(s, a, V.data);
         }
 
-        void FiveMBoundaryIntegratedFluxesVector::reinit(unsigned int n_boundaries, unsigned int n_dims) {
-            data.reinit(n_boundaries * (n_dims + 2));
+        void FiveMBoundaryIntegratedFluxesVector::reinit(unsigned int n_boundaries, unsigned int) {
+            data.reinit(n_boundaries * 5);
         }
 
         void FiveMBoundaryIntegratedFluxesVector::reinit(const FiveMBoundaryIntegratedFluxesVector& other) {

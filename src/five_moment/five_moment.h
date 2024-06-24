@@ -173,7 +173,7 @@ std::unique_ptr<FiveMomentApp<dim>> FiveMomentApp<dim>::create_from_parameters(
     bool fields_enabled = (fields_enabled_str == "true" || (fields_enabled_str == "auto" && n_species > 1));
 
     unsigned int n_field_components = fields_enabled ? 8 : 0;
-    unsigned int n_components = n_species * (dim + 2) + n_field_components;
+    unsigned int n_components = n_species * 5 + n_field_components;
     double t_end = prm.get_double("t_end");
     bool write_output = prm.get_bool("write_output");
     unsigned int n_writeout_frames = prm.get_integer("n_writeout_frames");
@@ -268,10 +268,11 @@ void FiveMomentApp<dim>::output_results(const unsigned int result_number) {
             interpretation.push_back(
                 DataComponentInterpretation::component_is_scalar);
 
-            for (unsigned int d = 0; d < dim; ++d) {
-                names.emplace_back(sp->name + "_momentum");
-                interpretation.push_back(
-                    DataComponentInterpretation::component_is_part_of_vector);
+            names.emplace_back(sp->name + "_x_momentum");
+            names.emplace_back(sp->name + "_y_momentum");
+            names.emplace_back(sp->name + "_z_momentum");
+            for (unsigned int d = 0; d < 3; ++d) {
+                interpretation.push_back(DataComponentInterpretation::component_is_scalar);
             }
 
             names.emplace_back(sp->name + "_energy");
@@ -282,12 +283,12 @@ void FiveMomentApp<dim>::output_results(const unsigned int result_number) {
             for (unsigned int d = 0; d < 3; ++d) {
                 names.emplace_back("E_field");
                 interpretation.push_back(
-                    DataComponentInterpretation::component_is_part_of_vector);
+                    DataComponentInterpretation::component_is_scalar);
             }
             for (unsigned int d = 0; d < 3; ++d) {
                 names.emplace_back("B_field");
                 interpretation.push_back(
-                    DataComponentInterpretation::component_is_part_of_vector);
+                    DataComponentInterpretation::component_is_scalar);
             }
             names.emplace_back("ph_maxwell_gauss_error");
             interpretation.push_back(

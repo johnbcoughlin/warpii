@@ -57,8 +57,8 @@ void EulerBCMap<dim>::set_inflow_boundary(
                            std::to_string(static_cast<int>(boundary_id)) +
                            " to another type of boundary before now setting " +
                            "it as an axis boundary"));
-    AssertThrow(inflow_function->n_components == dim + 2,
-                ExcMessage("Expected function with dim+2 components"));
+    AssertThrow(inflow_function->n_components == 5,
+                ExcMessage("Expected function with 5 components"));
 
     _inflow_boundaries[boundary_id] = std::move(inflow_function);
 }
@@ -72,8 +72,8 @@ void EulerBCMap<dim>::set_subsonic_outflow_boundary(
                            std::to_string(static_cast<int>(boundary_id)) +
                            " to another type of boundary before now setting " +
                            "it as an axis boundary"));
-    AssertThrow(outflow_function->n_components == dim + 2,
-                ExcMessage("Expected function with dim+2 components"));
+    AssertThrow(outflow_function->n_components == 5,
+                ExcMessage("Expected function with 5 components"));
 
     set_boundary_ids.insert(boundary_id);
     _subsonic_outflow_boundaries[boundary_id] = std::move(outflow_function);

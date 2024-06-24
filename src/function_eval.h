@@ -26,7 +26,7 @@ return result;
 }
 
 
-template <int dim, typename Number, typename VectorizedNumber, int n_components = dim + 2>
+template <int dim, typename Number, int n_components, typename VectorizedNumber>
 Tensor<1, n_components, VectorizedNumber>
 evaluate_function(const Function<dim>                       &function,
                 const Point<dim, VectorizedNumber> &p_vectorized)

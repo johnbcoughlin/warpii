@@ -33,7 +33,7 @@ subsection Species_1
     subsection InitialCondition
         set VariablesType = Primitive
         set Function constants = pi=3.1415926535
-        set Function expression = 1 + 0.6 * sin(2*pi*x); 1.0; 1.0
+        set Function expression = 1 + 0.6 * sin(2*pi*x); 1.0; 0.0; 0.0; 1.0
     end
 end
     )";
@@ -41,7 +41,7 @@ end
     // Run for a short time to avoid long time integration error messing
     // with convergence order.
     FunctionParser<1> expected_density = FunctionParser<1>(
-            "1 + 0.6 * sin(2*pi*(x - 0.04)); 0; 0", "pi=3.1415926535");
+            "1 + 0.6 * sin(2*pi*(x - 0.04)); 0; 0; 0; 0", "pi=3.1415926535");
 
     std::vector<unsigned int> Nxs = { 20, 30 };
     std::vector<double> errors;
@@ -88,7 +88,7 @@ subsection Species_1
     subsection InitialCondition
         set VariablesType = Primitive
         set Function constants = gamma=1.66667
-        set Function expression = if(x < 0.5, 1.0, 0.10); 0.0; if(x < 0.5, 1.0, 0.125)
+        set Function expression = if(x < 0.5, 1.0, 0.10); 0.0; 0.0; 0.0; if(x < 0.5, 1.0, 0.125)
     end
 
     subsection BoundaryConditions
@@ -123,7 +123,7 @@ subsection Species_1
     subsection InitialCondition
         set VariablesType = Primitive
         set Function constants = pi=3.1415926535
-        set Function expression = 1 + 0.6 * sin(2*pi*x); 1.0; 0.0; 1.0
+        set Function expression = 1 + 0.6 * sin(2*pi*x); 1.0; 0.0; 0.0; 1.0
     end
 end
     )";
@@ -157,7 +157,7 @@ subsection Species_1
     subsection InitialCondition
         set VariablesType = Primitive
         set Function constants = pi=3.1415926535
-        set Function expression = 1 + 0.6 * sin(2*pi*(x+y)); 1.0; 1.0; 1.0
+        set Function expression = 1 + 0.6 * sin(2*pi*(x+y)); 1.0; 1.0; 0.0; 1.0
     end
 end
     )";

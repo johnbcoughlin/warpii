@@ -28,21 +28,21 @@ void FiveMomentDGSolutionHelper<dim>::project_fluid_quantities(
     unsigned int species_index) const {
     const auto& mf = discretization->mf;
 
-    unsigned int first_component = species_index * (dim + 2);
-    FEEvaluation<dim, -1, 0, dim + 2, double> phi(mf, 0, 1, first_component);
-    MatrixFreeOperators::CellwiseInverseMassMatrix<dim, -1, dim + 2, double>
+    unsigned int first_component = species_index * 5;
+    FEEvaluation<dim, -1, 0, 5, double> phi(mf, 0, 1, first_component);
+    MatrixFreeOperators::CellwiseInverseMassMatrix<dim, -1, 5, double>
         inverse(phi);
 
     solution.zero_out_ghost_values();
     for (unsigned int cell = 0; cell < mf.n_cell_batches(); ++cell) {
         phi.reinit(cell);
         for (const unsigned int q : phi.quadrature_point_indices()) {
-            auto value = evaluate_function<dim, double>(
+            auto value = evaluate_function<dim, double, 5>(
                                      function, phi.quadrature_point(q));
             phi.submit_dof_value(value, q);
         }
         inverse.transform_from_q_points_to_basis(
-            dim + 2, phi.begin_dof_values(), phi.begin_dof_values());
+            5, phi.begin_dof_values(), phi.begin_dof_values());
         phi.set_dof_values(solution);
     }
 }
@@ -52,8 +52,8 @@ double FiveMomentDGSolutionHelper<dim>::compute_global_error(
     LinearAlgebra::distributed::Vector<double>& solution, 
     Function<dim>& f,
     unsigned int component) {
-    AssertThrow(f.n_components == dim+2, 
-            ExcMessage("The function provided to compare against must have dim+2 components."));
+    AssertThrow(f.n_components == 5, 
+            ExcMessage("The function provided to compare against must have 5 components."));
     Vector<double> difference;
     auto select = ComponentSelectFunction<dim, double>(component, discretization->get_n_components());
     VectorTools::integrate_difference(
@@ -69,15 +69,15 @@ double FiveMomentDGSolutionHelper<dim>::compute_global_error(
 }
 
 template <int dim>
-Tensor<1, dim+2, double> FiveMomentDGSolutionHelper<dim>::compute_global_integral(
+Tensor<1, 5, double> FiveMomentDGSolutionHelper<dim>::compute_global_integral(
         LinearAlgebra::distributed::Vector<double>&solution,
         unsigned int species_index) {
     const auto& mf = discretization->mf;
-    unsigned int first_component = species_index * (dim + 2);
-    FEEvaluation<dim, -1, 0, dim+2, double> phi(mf, 0, 1, first_component);
+    unsigned int first_component = species_index * 5;
+    FEEvaluation<dim, -1, 0, 5, double> phi(mf, 0, 1, first_component);
 
-    Tensor<1, dim+2, double> sum;
-    for (unsigned int comp = 0; comp < dim+2; comp++) {
+    Tensor<1, 5, double> sum;
+    for (unsigned int comp = 0; comp < 5; comp++) {
         sum[comp] = 0.0;
     }
     for (unsigned int cell = 0; cell < mf.n_cell_batches(); ++cell) {
@@ -88,7 +88,7 @@ Tensor<1, dim+2, double> FiveMomentDGSolutionHelper<dim>::compute_global_integra
         }
         auto cell_integral = phi.integrate_value();
         for (unsigned int lane = 0; lane < mf.n_active_entries_per_cell_batch(cell); lane++) {
-            for (unsigned int comp = 0; comp < dim+2; comp++) {
+            for (unsigned int comp = 0; comp < 5; comp++) {
                 sum[comp] += cell_integral[comp][lane];
             }
         }
