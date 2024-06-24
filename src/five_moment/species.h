@@ -18,8 +18,6 @@ using namespace dealii;
 namespace warpii {
 namespace five_moment {
 
-const unsigned int MAX_BOUNDARY_CONDITIONS = 8;
-
 template <int dim>
 class Species {
    public:

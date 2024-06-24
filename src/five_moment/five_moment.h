@@ -25,8 +25,6 @@ using namespace dealii;
 namespace warpii {
 namespace five_moment {
 
-const unsigned int MAX_N_SPECIES = 8;
-
 class FiveMomentWrapper : public ApplicationWrapper {
    public:
     void declare_parameters(ParameterHandler &prm) override;
