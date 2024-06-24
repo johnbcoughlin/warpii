@@ -11,12 +11,14 @@
 #include "../app.h"
 #include "../grid.h"
 #include "../wrapper.h"
+#include "../nodal_dg/nodal_dg_discretization.h"
 #include "dg_solver.h"
 #include "../timestepper.h"
 #include "postprocessor.h"
 #include "solution_vec.h"
 #include "species.h"
 #include "extension.h"
+#include "dg_solution_helper.h"
 
 using namespace dealii;
 
@@ -39,7 +41,7 @@ class FiveMomentApp : public AbstractApp {
    public:
     FiveMomentApp(
         std::shared_ptr<five_moment::Extension<dim>> extension,
-        std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization,
+        std::shared_ptr<NodalDGDiscretization<dim>> discretization,
         std::vector<std::shared_ptr<Species<dim>>> species,
         std::shared_ptr<Grid<dim>> grid,
         std::unique_ptr<FiveMomentDGSolver<dim>> solver, 
@@ -73,7 +75,9 @@ class FiveMomentApp : public AbstractApp {
 
     void reinit(ParameterHandler &prm);
 
-    FiveMomentDGDiscretization<dim> &get_discretization();
+    NodalDGDiscretization<dim> &get_discretization();
+
+    FiveMomentDGSolutionHelper<dim> &get_solution_helper();
 
     FiveMomentDGSolver<dim> &get_solver();
 
@@ -83,7 +87,7 @@ class FiveMomentApp : public AbstractApp {
 
    private:
     std::shared_ptr<five_moment::Extension<dim>> extension;
-    std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization;
+    std::shared_ptr<NodalDGDiscretization<dim>> discretization;
     std::vector<std::shared_ptr<Species<dim>>> species;
     std::shared_ptr<Grid<dim>> grid;
     std::unique_ptr<FiveMomentDGSolver<dim>> solver;
@@ -178,7 +182,7 @@ std::unique_ptr<FiveMomentApp<dim>> FiveMomentApp<dim>::create_from_parameters(
 
     unsigned int n_nonmesh_unknowns = n_boundaries;
 
-    auto discretization = std::make_shared<FiveMomentDGDiscretization<dim>>(
+    auto discretization = std::make_shared<NodalDGDiscretization<dim>>(
         grid, n_components, fe_degree);
 
     auto dg_solver = std::make_unique<FiveMomentDGSolver<dim>>(
@@ -196,8 +200,13 @@ std::unique_ptr<FiveMomentApp<dim>> FiveMomentApp<dim>::create_from_parameters(
 }
 
 template <int dim>
-FiveMomentDGDiscretization<dim> &FiveMomentApp<dim>::get_discretization() {
+NodalDGDiscretization<dim> &FiveMomentApp<dim>::get_discretization() {
     return *discretization;
+}
+
+template <int dim>
+FiveMomentDGSolutionHelper<dim>& FiveMomentApp<dim>::get_solution_helper() {
+    return solver->get_solution_helper();
 }
 
 template <int dim>

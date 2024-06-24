@@ -42,4 +42,9 @@ unsigned int quadrature_point_neighbor(unsigned int, unsigned int k, unsigned in
 template <int dim>
 unsigned int quad_point_1d_index(unsigned int q, unsigned int , unsigned int);
 
+enum ZeroOutPolicy {
+    DO_ZERO_DST_VECTOR,
+    DO_NOT_ZERO_DST_VECTOR,
+};
+
 }

@@ -1,5 +1,3 @@
-#include "dg_discretization.h"
-
 #include <deal.II/base/tensor.h>
 #include <deal.II/base/function.h>
 #include <deal.II/numerics/vector_tools.h>
@@ -18,47 +16,18 @@
 #include <deal.II/base/mpi.h>
 #include <deal.II/base/mpi.templates.h>
 #include <mpi.h>
+#include "dg_solution_helper.h"
 
 namespace warpii {
 namespace five_moment {
 
 template <int dim>
-void FiveMomentDGDiscretization<dim>::reinit() {
-    dof_handler.distribute_dofs(fe);
-
-    const std::vector<const DoFHandler<dim> *> dof_handlers = {&dof_handler};
-    const AffineConstraints<double> dummy;
-    const std::vector<const AffineConstraints<double> *> constraints = {&dummy};
-    const std::vector<Quadrature<1>> quadratures = {
-        QGauss<1>(fe_degree + 2), QGaussLobatto<1>(fe_degree + 1)};
-
-    typename MatrixFree<dim, double>::AdditionalData additional_data;
-    additional_data.mapping_update_flags =
-        (update_gradients | update_JxW_values | update_quadrature_points |
-         update_values);
-    additional_data.mapping_update_flags_inner_faces =
-        (update_JxW_values | update_quadrature_points | update_normal_vectors |
-         update_values);
-    additional_data.mapping_update_flags_boundary_faces =
-        (update_JxW_values | update_quadrature_points | update_normal_vectors |
-         update_values);
-    additional_data.tasks_parallel_scheme =
-        MatrixFree<dim, double>::AdditionalData::none;
-
-    mf.reinit(mapping, dof_handlers, constraints, quadratures, additional_data);
-}
-
-template <int dim>
-void FiveMomentDGDiscretization<dim>::perform_allocation(
-    LinearAlgebra::distributed::Vector<double> &solution) {
-    mf.initialize_dof_vector(solution);
-}
-
-template <int dim>
-void FiveMomentDGDiscretization<dim>::project_fluid_quantities(
+void FiveMomentDGSolutionHelper<dim>::project_fluid_quantities(
     const Function<dim> &function,
     LinearAlgebra::distributed::Vector<double> &solution,
     unsigned int species_index) const {
+    const auto& mf = discretization->mf;
+
     unsigned int first_component = species_index * (dim + 2);
     FEEvaluation<dim, -1, 0, dim + 2, double> phi(mf, 0, 1, first_component);
     MatrixFreeOperators::CellwiseInverseMassMatrix<dim, -1, dim + 2, double>
@@ -79,30 +48,31 @@ void FiveMomentDGDiscretization<dim>::project_fluid_quantities(
 }
 
 template <int dim>
-double FiveMomentDGDiscretization<dim>::compute_global_error(
-    LinearAlgebra::distributed::Vector<double>& solution, Function<dim>& f,
+double FiveMomentDGSolutionHelper<dim>::compute_global_error(
+    LinearAlgebra::distributed::Vector<double>& solution, 
+    Function<dim>& f,
     unsigned int component) {
     AssertThrow(f.n_components == dim+2, 
             ExcMessage("The function provided to compare against must have dim+2 components."));
-
     Vector<double> difference;
-    auto select = ComponentSelectFunction<dim, double>(component, n_components);
+    auto select = ComponentSelectFunction<dim, double>(component, discretization->get_n_components());
     VectorTools::integrate_difference(
-            mapping, dof_handler,
+            discretization->get_mapping(), discretization->get_dof_handler(),
             solution, f, difference,
-            QGauss<dim>(fe_degree), 
+            QGauss<dim>(discretization->get_fe_degree()), 
             VectorTools::NormType::L2_norm,
             &select);
     return VectorTools::compute_global_error(
-            grid->triangulation,
+            discretization->get_grid().triangulation,
             difference,
             VectorTools::NormType::L2_norm);
 }
 
 template <int dim>
-Tensor<1, dim+2, double> FiveMomentDGDiscretization<dim>::compute_global_integral(
+Tensor<1, dim+2, double> FiveMomentDGSolutionHelper<dim>::compute_global_integral(
         LinearAlgebra::distributed::Vector<double>&solution,
         unsigned int species_index) {
+    const auto& mf = discretization->mf;
     unsigned int first_component = species_index * (dim + 2);
     FEEvaluation<dim, -1, 0, dim+2, double> phi(mf, 0, 1, first_component);
 
@@ -127,8 +97,8 @@ Tensor<1, dim+2, double> FiveMomentDGDiscretization<dim>::compute_global_integra
     return sum;
 }
 
-template class FiveMomentDGDiscretization<1>;
-template class FiveMomentDGDiscretization<2>;
+template class FiveMomentDGSolutionHelper<1>;
+template class FiveMomentDGSolutionHelper<2>;
 
 }
 }  // namespace warpii

@@ -10,7 +10,7 @@
 
 #include "../function_eval.h"
 #include "bc_helper.h"
-#include "dg_discretization.h"
+#include "../nodal_dg/nodal_dg_discretization.h"
 #include "euler.h"
 #include "species.h"
 
@@ -23,7 +23,7 @@ template <int dim>
 class FluidFluxDGOperator {
    public:
     FluidFluxDGOperator(
-        std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization,
+        std::shared_ptr<NodalDGDiscretization<dim>> discretization,
         double gas_gamma, std::vector<std::shared_ptr<Species<dim>>> species)
         : discretization(discretization),
           gas_gamma(gas_gamma),
@@ -68,7 +68,7 @@ class FluidFluxDGOperator {
         const LinearAlgebra::distributed::Vector<double> &src,
         const std::pair<unsigned int, unsigned int> &cell_range) const;
 
-    std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization;
+    std::shared_ptr<NodalDGDiscretization<dim>> discretization;
     double gas_gamma;
     unsigned int n_species;
     std::vector<std::shared_ptr<Species<dim>>> species;

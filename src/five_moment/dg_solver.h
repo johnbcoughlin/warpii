@@ -14,7 +14,7 @@
 #include "../rk.h"
 #include "../timestepper.h"
 #include "solution_vec.h"
-#include "dg_discretization.h"
+#include "../nodal_dg/nodal_dg_discretization.h"
 #include "fluid_flux_dg_operator.h"
 #include "fluid_flux_es_dgsem_operator.h"
 #include "species.h"
@@ -35,12 +35,13 @@ template <int dim>
 class FiveMomentDGSolver {
    public:
     FiveMomentDGSolver(
-        std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization,
+        std::shared_ptr<NodalDGDiscretization<dim>> discretization,
         std::vector<std::shared_ptr<Species<dim>>> species, double gas_gamma,
         double t_end,
         unsigned int n_boundaries)
         : t_end(t_end),
           discretization(discretization),
+          solution_helper(discretization),
           species(species),
           fluid_flux_operator(discretization, gas_gamma, species),
           n_boundaries(n_boundaries)
@@ -52,6 +53,8 @@ class FiveMomentDGSolver {
 
     void solve(TimestepCallback callback);
 
+    FiveMomentDGSolutionHelper<dim>& get_solution_helper();
+
     FiveMSolutionVec& get_solution();
 
     FluidFluxESDGSEMOperator<dim>& get_fluid_flux_operator() {
@@ -60,7 +63,8 @@ class FiveMomentDGSolver {
 
    private:
     double t_end;
-    std::shared_ptr<FiveMomentDGDiscretization<dim>> discretization;
+    std::shared_ptr<NodalDGDiscretization<dim>> discretization;
+    FiveMomentDGSolutionHelper<dim> solution_helper;
     std::vector<std::shared_ptr<Species<dim>>> species;
     FiveMSolutionVec solution;
 
