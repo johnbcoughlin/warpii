@@ -10,7 +10,7 @@
 
 #include "../function_eval.h"
 #include "bc_helper.h"
-#include "../nodal_dg/nodal_dg_discretization.h"
+#include "../dgsem/nodal_dg_discretization.h"
 #include "euler.h"
 #include "species.h"
 

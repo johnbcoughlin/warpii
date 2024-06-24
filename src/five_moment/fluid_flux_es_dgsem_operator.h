@@ -15,7 +15,7 @@
 
 #include "../dof_utils.h"
 #include "../utilities.h"
-#include "../nodal_dg/nodal_dg_discretization.h"
+#include "../dgsem/nodal_dg_discretization.h"
 #include "euler.h"
 #include "fluxes/subcell_finite_volume_flux.h"
 #include "solution_vec.h"
