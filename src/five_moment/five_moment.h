@@ -11,7 +11,7 @@
 #include "../app.h"
 #include "../grid.h"
 #include "../wrapper.h"
-#include "../nodal_dg/nodal_dg_discretization.h"
+#include "../dgsem/nodal_dg_discretization.h"
 #include "dg_solver.h"
 #include "../timestepper.h"
 #include "postprocessor.h"

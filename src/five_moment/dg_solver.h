@@ -14,7 +14,7 @@
 #include "../rk.h"
 #include "../timestepper.h"
 #include "solution_vec.h"
-#include "../nodal_dg/nodal_dg_discretization.h"
+#include "../dgsem/nodal_dg_discretization.h"
 #include "fluid_flux_dg_operator.h"
 #include "fluid_flux_es_dgsem_operator.h"
 #include "species.h"

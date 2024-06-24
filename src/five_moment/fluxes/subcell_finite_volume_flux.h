@@ -19,7 +19,7 @@
 #include "../solution_vec.h"
 #include "../species.h"
 #include "jacobian_utils.h"
-#include "../../nodal_dg/nodal_dg_discretization.h"
+#include "../../dgsem/nodal_dg_discretization.h"
 
 namespace warpii {
 namespace five_moment {

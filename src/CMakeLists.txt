@@ -12,7 +12,7 @@ add_library(libwarpii
     five_moment/solution_vec.cc
     five_moment/species.cc
     five_moment/species_func.cc
-    nodal_dg/nodal_dg_discretization.cc
+    dgsem/nodal_dg_discretization.cc
     fpe.cc
     utilities.cc
     )
