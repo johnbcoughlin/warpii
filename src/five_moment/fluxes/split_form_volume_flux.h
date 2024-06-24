@@ -16,7 +16,7 @@
 #include "../../dof_utils.h"
 #include "../../utilities.h"
 #include "../dg_solution_helper.h"
-#include "../../nodal_dg/nodal_dg_discretization.h"
+#include "../../dgsem/nodal_dg_discretization.h"
 #include "../euler.h"
 #include "../solution_vec.h"
 #include "../species.h"

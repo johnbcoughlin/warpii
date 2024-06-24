@@ -11,7 +11,7 @@
 #include "../app.h"
 #include "../grid.h"
 #include "../wrapper.h"
-#include "../nodal_dg/nodal_dg_discretization.h"
+#include "../dgsem/nodal_dg_discretization.h"
 #include "dg_solver.h"
 #include "../timestepper.h"
 #include "postprocessor.h"
@@ -24,8 +24,6 @@ using namespace dealii;
 
 namespace warpii {
 namespace five_moment {
-
-const unsigned int MAX_N_SPECIES = 8;
 
 class FiveMomentWrapper : public ApplicationWrapper {
    public:
