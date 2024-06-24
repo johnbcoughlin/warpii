@@ -11,10 +11,9 @@ jobs:
           command: apt-get install -y doxygen
       - run: 
           name: "Build and run tests"
-          command: make test
+          command: make test CMAKE_BUILD_PARALLEL_LEVEL=2
           environment:
             WARPII_CMAKE_PRESET: ci-ubuntu
-            CMAKE_BUILD_PARALLEL_LEVEL: 2
 
 
 workflows:
