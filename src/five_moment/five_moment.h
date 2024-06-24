@@ -25,11 +25,6 @@ namespace five_moment {
 
 const unsigned int MAX_N_SPECIES = 8;
 
-class AbstractFiveMomentApp {
-   public:
-    virtual ~AbstractFiveMomentApp() = default;
-};
-
 class FiveMomentWrapper : public ApplicationWrapper {
    public:
     void declare_parameters(ParameterHandler &prm) override;
@@ -37,9 +32,6 @@ class FiveMomentWrapper : public ApplicationWrapper {
     std::unique_ptr<AbstractApp> create_app(ParameterHandler &prm,
                                             std::string input,
                                             std::shared_ptr<warpii::Extension> extension) override;
-
-   private:
-    std::unique_ptr<AbstractFiveMomentApp> app;
 };
 
 template <int dim>
