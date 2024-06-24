@@ -62,7 +62,7 @@ builds/$(WARPII_CMAKE_PRESET)/configured: check-env CMakePresets.json CMakeLists
 		&& touch builds/$(WARPII_CMAKE_PRESET)/configured
 
 build: check-env src codes builds/$(WARPII_CMAKE_PRESET)/configured
-	source warpii.env && cmake --build --preset $(WARPII_CMAKE_PRESET) --parallel
+	source warpii.env && cmake --build --preset $(WARPII_CMAKE_PRESET) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
 
 test: check-env build
 	cd builds/$(WARPII_CMAKE_PRESET) \
