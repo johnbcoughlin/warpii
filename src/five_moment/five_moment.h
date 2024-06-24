@@ -25,11 +25,6 @@ namespace five_moment {
 
 const unsigned int MAX_N_SPECIES = 8;
 
-class AbstractFiveMomentApp {
-   public:
-    virtual ~AbstractFiveMomentApp() = default;
-};
-
 class FiveMomentWrapper : public ApplicationWrapper {
    public:
     void declare_parameters(ParameterHandler &prm) override;
@@ -37,21 +32,7 @@ class FiveMomentWrapper : public ApplicationWrapper {
     std::unique_ptr<AbstractApp> create_app(ParameterHandler &prm,
                                             std::string input,
                                             std::shared_ptr<warpii::Extension> extension) override;
-
-   private:
-    std::unique_ptr<AbstractFiveMomentApp> app;
 };
-
-template <int dim>
-std::shared_ptr<five_moment::Extension<dim>> unwrap_extension(std::shared_ptr<warpii::Extension> ext) {
-    if (!ext) {
-        return std::make_shared<five_moment::Extension<dim>>();
-    }
-    if (auto result = std::dynamic_pointer_cast<five_moment::Extension<dim>>(ext)) {
-        return result;
-    }
-    return std::make_shared<five_moment::Extension<dim>>();
-}
 
 template <int dim>
 class FiveMomentApp : public AbstractApp {
