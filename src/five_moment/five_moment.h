@@ -35,17 +35,6 @@ class FiveMomentWrapper : public ApplicationWrapper {
 };
 
 template <int dim>
-std::shared_ptr<five_moment::Extension<dim>> unwrap_extension(std::shared_ptr<warpii::Extension> ext) {
-    if (!ext) {
-        return std::make_shared<five_moment::Extension<dim>>();
-    }
-    if (auto result = std::dynamic_pointer_cast<five_moment::Extension<dim>>(ext)) {
-        return result;
-    }
-    return std::make_shared<five_moment::Extension<dim>>();
-}
-
-template <int dim>
 class FiveMomentApp : public AbstractApp {
    public:
     FiveMomentApp(

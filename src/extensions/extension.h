@@ -55,4 +55,15 @@ void GridExtension<dim>::populate_triangulation(Triangulation<dim>&, const Param
 template class GridExtension<1>;
 template class GridExtension<2>;
 
+template <typename ExtType>
+std::shared_ptr<ExtType> unwrap_extension(std::shared_ptr<warpii::Extension> ext) {
+    if (!ext) {
+        return std::make_shared<ExtType>();
+    }
+    if (auto result = std::dynamic_pointer_cast<ExtType>(ext)) {
+        return result;
+    }
+    return std::make_shared<ExtType>();
+}
+
 }  // namespace warpii

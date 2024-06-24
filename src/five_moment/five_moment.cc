@@ -27,14 +27,14 @@ std::unique_ptr<AbstractApp> FiveMomentWrapper::create_app(
     switch (prm.get_integer("n_dims")) {
         case 1: {
             std::shared_ptr<five_moment::Extension<1>> ext = 
-                unwrap_extension<1>(extension);
+                unwrap_extension<five_moment::Extension<1>>(extension);
             FiveMomentApp<1>::declare_parameters(prm, ext);
             prm.parse_input_from_string(input, "", false);
             return FiveMomentApp<1>::create_from_parameters(prm, ext);
         }
         case 2: {
             std::shared_ptr<five_moment::Extension<2>> ext = 
-                unwrap_extension<2>(extension);
+                unwrap_extension<five_moment::Extension<2>>(extension);
             FiveMomentApp<2>::declare_parameters(prm, ext);
             prm.parse_input_from_string(input, "", false);
             return FiveMomentApp<2>::create_from_parameters(prm, ext);
