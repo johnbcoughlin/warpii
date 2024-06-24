@@ -54,8 +54,8 @@ class SubcellFiniteVolumeFlux {
 
     void calculate_flux(
         LinearAlgebra::distributed::Vector<double> &dst,
-        FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
-        const FEEvaluation<dim, -1, 0, dim + 2, double> &phi_reader,
+        FEEvaluation<dim, -1, 0, 5, double> &phi,
+        const FEEvaluation<dim, -1, 0, 5, double> &phi_reader,
         VectorizedArray<double> alpha, bool log) const;
 
    private:
@@ -68,18 +68,18 @@ class SubcellFiniteVolumeFlux {
 template <int dim>
 void SubcellFiniteVolumeFlux<dim>::calculate_flux(
     LinearAlgebra::distributed::Vector<double> &dst,
-    FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
-    const FEEvaluation<dim, -1, 0, dim + 2, double> &phi_reader,
+    FEEvaluation<dim, -1, 0, 5, double> &phi,
+    const FEEvaluation<dim, -1, 0, 5, double> &phi_reader,
     VectorizedArray<double> alpha, bool /* log */) const {
 
     for (unsigned int d = 0; d < dim; d++) {
-        std::vector<Tensor<1, dim + 2, VectorizedArray<double>>>
+        std::vector<Tensor<1, 5, VectorizedArray<double>>>
             flux_differences(Np);
 
         unsigned int stride = pencil_stride(Np, d);
         for (unsigned int pencil_start : pencil_starts<dim>(Np, d)) {
             for (unsigned int i = 0; i < Np; i++) {
-                for (unsigned int comp = 0; comp < dim + 2; comp++) {
+                for (unsigned int comp = 0; comp < 5; comp++) {
                     flux_differences[i][comp] = VectorizedArray(0.0);
                 }
             }

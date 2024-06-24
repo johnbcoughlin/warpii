@@ -15,15 +15,15 @@ double SpeciesFunc<dim>::value(const Point<dim> &pt,
         double rho = func->value(pt, 0);
         if (component == 0) {
             return rho;
-        } else if (component <= dim) {
+        } else if (component <= 3) {
             return rho * func->value(pt, component);
         } else {
             double kinetic_energy = 0.0;
-            for (unsigned int d = 0; d < dim; d++) {
+            for (unsigned int d = 0; d < 3; d++) {
                 double u_d = func->value(pt, d + 1);
                 kinetic_energy += 0.5 * rho * u_d * u_d;
             }
-            double p = func->value(pt, dim + 1);
+            double p = func->value(pt, 4);
             return kinetic_energy + p / (gas_gamma - 1);
         }
     }
@@ -32,7 +32,7 @@ double SpeciesFunc<dim>::value(const Point<dim> &pt,
 template <int dim>
 void SpeciesFunc<dim>::declare_parameters(ParameterHandler& prm) {
     prm.declare_entry("VariablesType", "Primitive", Patterns::Selection("Primitive|Conserved"));
-    Functions::ParsedFunction<dim>::declare_parameters(prm, dim + 2);
+    Functions::ParsedFunction<dim>::declare_parameters(prm, 5);
 }
 
 template <int dim>
@@ -45,7 +45,7 @@ std::unique_ptr<SpeciesFunc<dim>> SpeciesFunc<dim>::create_from_parameters(Param
         variables_type = CONSERVED;
     }
     std::unique_ptr<Functions::ParsedFunction<dim>> func =
-        std::make_unique<Functions::ParsedFunction<dim>>(dim + 2);
+        std::make_unique<Functions::ParsedFunction<dim>>(5);
     func->parse_parameters(prm);
     return std::make_unique<SpeciesFunc<dim>>(std::move(func), variables_type, gas_gamma);
 }

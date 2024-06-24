@@ -102,15 +102,15 @@ class FluidFluxESDGSEMOperator {
 
     void calculate_high_order_EC_flux(
         LinearAlgebra::distributed::Vector<double> &dst,
-        FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
-        const FEEvaluation<dim, -1, 0, dim + 2, double> &phi_reader,
+        FEEvaluation<dim, -1, 0, 5, double> &phi,
+        const FEEvaluation<dim, -1, 0, 5, double> &phi_reader,
         const FullMatrix<double> &D, unsigned int d,
         VectorizedArray<double> alpha, bool log = false) const;
 
     void calculate_first_order_ES_flux(
         LinearAlgebra::distributed::Vector<double> &dst,
-        FEEvaluation<dim, -1, 0, dim + 2, double> &phi,
-        const FEEvaluation<dim, -1, 0, dim + 2, double> &phi_reader,
+        FEEvaluation<dim, -1, 0, 5, double> &phi,
+        const FEEvaluation<dim, -1, 0, 5, double> &phi_reader,
         const std::vector<double> &quadrature_weights,
         const FullMatrix<double> &Q, unsigned int d,
         VectorizedArray<double> alpha, bool log = false) const;
@@ -221,10 +221,10 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_inverse_mass_matrix(
     const std::pair<unsigned int, unsigned int> &cell_range) const {
     for (unsigned int species_index = 0; species_index < n_species;
          species_index++) {
-        unsigned int first_component = species_index * (dim + 2);
-        FEEvaluation<dim, -1, 0, dim + 2, double> phi(mf, 0, 1,
+        unsigned int first_component = species_index * (5);
+        FEEvaluation<dim, -1, 0, 5, double> phi(mf, 0, 1,
                                                       first_component);
-        MatrixFreeOperators::CellwiseInverseMassMatrix<dim, -1, dim + 2, double>
+        MatrixFreeOperators::CellwiseInverseMassMatrix<dim, -1, 5, double>
             inverse(phi);
 
         for (unsigned int cell = cell_range.first; cell < cell_range.second;
@@ -266,10 +266,10 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_cell(
 
     for (unsigned int species_index = 0; species_index < n_species;
          species_index++) {
-        unsigned int first_component = species_index * (dim + 2);
-        FEEvaluation<dim, -1, 0, dim + 2, double> phi(mf, 0, 1,
+        unsigned int first_component = species_index * (5);
+        FEEvaluation<dim, -1, 0, 5, double> phi(mf, 0, 1,
                                                       first_component);
-        FEEvaluation<dim, -1, 0, dim + 2, double> phi_reader(mf, 0, 1,
+        FEEvaluation<dim, -1, 0, 5, double> phi_reader(mf, 0, 1,
                                                              first_component);
 
         for (unsigned int cell = cell_range.first; cell < cell_range.second;
@@ -306,10 +306,10 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_face(
     const std::pair<unsigned int, unsigned int> &face_range) const {
     for (unsigned int species_index = 0; species_index < n_species;
          species_index++) {
-        unsigned int first_component = species_index * (dim + 2);
-        FEFaceEvaluation<dim, -1, 0, dim + 2, double> phi_m(mf, true, 0, 1,
+        unsigned int first_component = species_index * (5);
+        FEFaceEvaluation<dim, -1, 0, 5, double> phi_m(mf, true, 0, 1,
                                                             first_component);
-        FEFaceEvaluation<dim, -1, 0, dim + 2, double> phi_p(mf, false, 0, 1,
+        FEFaceEvaluation<dim, -1, 0, 5, double> phi_p(mf, false, 0, 1,
                                                             first_component);
 
         for (unsigned int face = face_range.first; face < face_range.second;
@@ -351,10 +351,10 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
     for (unsigned int species_index = 0; species_index < n_species;
          species_index++) {
         EulerBCMap<dim> &bc_map = species.at(species_index)->bc_map;
-        unsigned int first_component = species_index * (dim + 2);
-        FEFaceEvaluation<dim, -1, 0, dim + 2, double> phi(mf, true, 0, 0,
+        unsigned int first_component = species_index * (5);
+        FEFaceEvaluation<dim, -1, 0, 5, double> phi(mf, true, 0, 0,
                                                           first_component);
-        FEFaceEvaluation<dim, -1, 0, dim + 2, double>
+        FEFaceEvaluation<dim, -1, 0, 5, double>
             phi_boundary_flux_integrator(mf, true, 0, 0, first_component);
 
         for (unsigned int face = face_range.first; face < face_range.second;
@@ -366,7 +366,7 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
             const auto boundary_id = mf.get_boundary_id(face);
 
             for (const unsigned int q : phi.quadrature_point_indices()) {
-                const Tensor<1, dim + 2, VectorizedArray<double>> w_m =
+                const Tensor<1, 5, VectorizedArray<double>> w_m =
                     phi.get_value(q);
                 const Tensor<1, dim, VectorizedArray<double>> normal =
                     phi.normal_vector(q);
@@ -377,16 +377,16 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
                 }
 
                 // bool at_outflow = false;
-                Tensor<1, dim + 2, VectorizedArray<double>> w_p;
+                Tensor<1, 5, VectorizedArray<double>> w_p;
                 if (bc_map.is_inflow(boundary_id)) {
-                    w_p = evaluate_function<dim, double>(
+                    w_p = evaluate_function<dim, double, 5>(
                         *bc_map.get_inflow(boundary_id),
                         phi.quadrature_point(q));
                 } else if (bc_map.is_subsonic_outflow(boundary_id)) {
                     w_p = w_m;
-                    w_p[dim + 1] = evaluate_function<dim, double>(
+                    w_p[4] = evaluate_function<dim, double>(
                         *bc_map.get_subsonic_outflow_energy(boundary_id),
-                        phi.quadrature_point(q), dim + 1);
+                        phi.quadrature_point(q), 4);
                     // at_outflow = true;
                 } else if (bc_map.is_supersonic_outflow(boundary_id)) {
                     w_p = w_m;
@@ -397,7 +397,12 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
                     for (unsigned int d = 0; d < dim; d++) {
                         w_p[d + 1] = w_m[d + 1] - 2.0 * rho_u_dot_n * normal[d];
                     }
-                    w_p[dim + 1] = w_m[dim + 1];
+                    // The velocity component in the direction of symmetry shouldn't matter,
+                    // i.e. u_z for a 2d simulation, but set it to zero just in case.
+                    for (unsigned int d = dim; d < 3; d++) {
+                        w_p[d + 1] = 0.0;
+                    }
+                    w_p[4] = w_m[4];
                 } else {
                     AssertThrow(
                         false,
@@ -419,13 +424,13 @@ void FluidFluxESDGSEMOperator<dim>::local_apply_boundary_face(
              * While we are here at this face, integrate the numerical flux
              * across it for use in diagnostics.
              */
-            Tensor<1, dim + 2, VectorizedArray<double>>
+            Tensor<1, 5, VectorizedArray<double>>
                 integrated_boundary_flux =
                     phi_boundary_flux_integrator.integrate_value();
             for (unsigned int lane = 0;
                  lane < mf.n_active_entries_per_face_batch(face); lane++) {
-                Tensor<1, dim + 2, double> tensor;
-                for (unsigned int comp = 0; comp < dim + 2; comp++) {
+                Tensor<1, 5, double> tensor;
+                for (unsigned int comp = 0; comp < 5; comp++) {
                     tensor[comp] = integrated_boundary_flux[comp][lane];
                 }
                 d_dt_boundary_integrated_fluxes.add<dim>(boundary_id, tensor);
@@ -452,9 +457,9 @@ double FluidFluxESDGSEMOperator<dim>::compute_cell_transport_speed(
 
     for (unsigned int species_index = 0; species_index < n_species;
          species_index++) {
-        unsigned int first_component = species_index * (dim + 2);
+        unsigned int first_component = species_index * (5);
 
-        FEEvaluation<dim, -1, 0, dim + 2, Number> phi(mf, 0, 1,
+        FEEvaluation<dim, -1, 0, 5, Number> phi(mf, 0, 1,
                                                       first_component);
 
         for (unsigned int cell = 0; cell < mf.n_cell_batches(); ++cell) {

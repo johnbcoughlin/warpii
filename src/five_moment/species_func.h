@@ -17,7 +17,7 @@ class SpeciesFunc : public Function<dim> {
    public:
     SpeciesFunc(std::unique_ptr<Functions::ParsedFunction<dim>> func,
                 SpeciesFuncVariablesType variables_type, double gas_gamma)
-        : Function<dim>(dim + 2),
+        : Function<dim>(5),
           func(std::move(func)),
           variables_type(variables_type),
           gas_gamma(gas_gamma) {}

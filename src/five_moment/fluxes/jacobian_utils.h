@@ -11,7 +11,7 @@ namespace warpii {
 
 template <int dim>
 VectorizedArray<double> jacobian_determinant(
-    const FEEvaluation<dim, -1, 0, dim + 2, double> &phi, unsigned int q) {
+    const FEEvaluation<dim, -1, 0, 5, double> &phi, unsigned int q) {
     Tensor<2, dim, VectorizedArray<double>> Jinv_j = phi.inverse_jacobian(q);
     VectorizedArray<double> Jdet_j = 1.0 / warpii::determinant(Jinv_j);
     return Jdet_j;
@@ -31,7 +31,7 @@ VectorizedArray<double> jacobian_determinant(
  */
 template <int dim>
 Tensor<1, dim, VectorizedArray<double>> scaled_contravariant_basis_vector(
-    const FEEvaluation<dim, -1, 0, dim + 2, double> &phi, unsigned int q,
+    const FEEvaluation<dim, -1, 0, 5, double> &phi, unsigned int q,
     unsigned int d) {
     Tensor<2, dim, VectorizedArray<double>> Jinv_j = phi.inverse_jacobian(q);
     VectorizedArray<double> Jdet_j = jacobian_determinant(phi, q);

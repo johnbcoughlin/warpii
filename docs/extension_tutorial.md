@@ -145,7 +145,7 @@ set n_boundaries = 5
 subsection Species_1
     subsection InitialCondition
         set VariablesType = Primitive
-        set Function expression = 1; 0.1; 0.1; 1.0
+        set Function expression = 1; 0.1; 0.1; 0.0; 1.0
     end
 
     subsection BoundaryConditions

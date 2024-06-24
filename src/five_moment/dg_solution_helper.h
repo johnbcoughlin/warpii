@@ -42,7 +42,7 @@ class FiveMomentDGSolutionHelper {
     /**
      * Computes the global integral of the solution vector for the given species.
      */
-    Tensor<1, dim+2, double> compute_global_integral(
+    Tensor<1, 5, double> compute_global_integral(
         LinearAlgebra::distributed::Vector<double>& solution,
         unsigned int species_index);
 

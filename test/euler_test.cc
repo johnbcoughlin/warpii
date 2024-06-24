@@ -9,13 +9,14 @@ using namespace warpii::five_moment;
 
 TEST(EulerTest, EntropyVariablesSatisfyDerivativeIdentity) {
     double gamma = 1.4;
-    Tensor<1, 4, double> q;
+    Tensor<1, 5, double> q;
     q[0] = 2.3;
     q[1] = 0.58;
     q[2] = 0.33;
-    q[3] = 10.0;
+    q[3] = 0.0;
+    q[4] = 10.0;
 
-    const auto w = euler_entropy_variables<2>(q, gamma);
+    const auto w = euler_entropy_variables<3>(q, gamma);
     //const auto eta = euler_mathematical_entropy<2>(q, gamma);
 
     // Perform a finite difference test of the relationship w = 
@@ -46,9 +47,9 @@ TEST(EulerTest, EulerEntropyFluxPotentialTest) {
         auto qL = euler_entropy_flux<1>(stateL, gamma);
 
         // Entropy flux potential
-        Tensor<1, 1, double> psiL;
+        Tensor<1, 3, double> psiL;
         for (unsigned int d = 0; d < 1; d++) {
-            for (unsigned int c = 0; c < 3; c++) {
+            for (unsigned int c = 0; c < 5; c++) {
                 psiL[d] += wL[c] * fL[c][d];
             }
             psiL[d] -= qL[d];
@@ -81,37 +82,37 @@ TEST(EulerFluxTests, LnAvgTest) {
 TEST(EulerFluxTests, EulerCHECTest) {
     double gamma = 5.0 / 3.0;
     // Sod shocktube left and right states
-    Tensor<1, 3, double> left({1.0, 0.0, 1.0 / (gamma - 1.0)});
-    Tensor<1, 3, double> right({0.1, 0.0, 0.125 / (gamma - 1.0)});
+    Tensor<1, 5, double> left({1.0, 0.0, 0.0, 0.0, 1.0 / (gamma - 1.0)});
+    Tensor<1, 5, double> right({0.1, 0.0, 0.0, 0.0, 0.125 / (gamma - 1.0)});
 
-    Tensor<1, 3, Tensor<1, 1, double>> actual = euler_CH_EC_flux<1>(left, right, gamma);
+    Tensor<1, 5, Tensor<1, 1, double>> actual = euler_CH_EC_flux<1>(left, right, gamma);
     EXPECT_EQ(actual[0][0], 0.0);
     EXPECT_NEAR(actual[1][0], 0.5 + 1.0 / 9, 1e-15);
-    EXPECT_EQ(actual[2][0], 0.0);
+    EXPECT_EQ(actual[4][0], 0.0);
 
     // Left: rho, u, p = [1.0, 1.0, 1.0]
     // Right: rho, u, p = [0.5, 0.5, 0.5]
-    left = Tensor<1, 3, double>({1.0, 1.0, 0.5 * 1.0 + 1.0 / (gamma - 1.0)});
-    right = Tensor<1, 3, double>({0.5, 0.5, 0.5 * 0.5 + 0.5 / (gamma - 1.0)});
+    left = Tensor<1, 5, double>({1.0, 1.0, 0.0, 0.0, 0.5 * 1.0 + 1.0 / (gamma - 1.0)});
+    right = Tensor<1, 5, double>({0.5, 0.5, 0.0, 0.0, 0.5 * 0.5 + 0.5 / (gamma - 1.0)});
     actual = euler_CH_EC_flux<1>(left, right, gamma);
     EXPECT_NEAR(actual[0][0], 0.7213475204444817, 1e-15);
     EXPECT_NEAR(actual[1][0],  1.4713475204444817, 1e-15);
-    EXPECT_NEAR(actual[2][0], 2.192695040888963, 1e-15);
+    EXPECT_NEAR(actual[4][0], 2.192695040888963, 1e-15);
 }
 
 TEST(EulerFluxTests, EulerCHESTest) {
     double gamma = 5.0 / 3.0;
     // Sod shocktube left and right states
-    Tensor<1, 3, double> left({1.0, 0.0, 1.0 / (gamma - 1.0)});
-    Tensor<1, 3, double> right({0.1, 0.0, 0.125 / (gamma - 1.0)});
+    Tensor<1, 5, double> left({1.0, 0.0, 0.0, 0.0, 1.0 / (gamma - 1.0)});
+    Tensor<1, 5, double> right({0.1, 0.0, 0.0, 0.0, 0.125 / (gamma - 1.0)});
 
     Tensor<1, 1, double> normal;
     normal[0] = 1.0;
-    Tensor<1, 3, double> actual = euler_CH_entropy_dissipating_flux<1>(
+    Tensor<1, 5, double> actual = euler_CH_entropy_dissipating_flux<1>(
             left, right, normal, gamma);
     EXPECT_NEAR(actual[0], 0.6495190528383291, 1e-15);
     EXPECT_NEAR(actual[1], 0.5 + 1.0 / 9, 1e-15);
-    EXPECT_NEAR(actual[2],  0.9381717944489488, 1e-15);
+    EXPECT_NEAR(actual[4],  0.9381717944489488, 1e-15);
 }
 
 // This tests that the numerical entropy production,
@@ -122,16 +123,6 @@ TEST(EulerFluxTests, EntropyConservationTest1D) {
     for (unsigned int i = 0; i < 100; i++) {
         auto stateL = random_euler_state<1>(gamma);
         auto stateR = random_euler_state<1>(gamma);
-        /*
-        Tensor<1, 3, double> stateL;
-        stateL[0] = 1.0;
-        stateL[1] = 0.3;
-        stateL[2] = 1.0 / (gamma - 1.0);
-        Tensor<1, 3, double> stateR;
-        stateR[0] = 0.1;
-        stateR[1] = 0.13;
-        stateR[2] = 0.125 / (gamma - 1.0);
-        */
 
         auto wL = euler_entropy_variables<1>(stateL, gamma);
         auto wR = euler_entropy_variables<1>(stateR, gamma);
@@ -148,7 +139,7 @@ TEST(EulerFluxTests, EntropyConservationTest1D) {
         for (unsigned int d = 0; d < 1; d++) {
             psiL[d] = 0.0;
             psiR[d] = 0.0;
-            for (unsigned int c = 0; c < 3; c++) {
+            for (unsigned int c = 0; c < 5; c++) {
                 psiL[d] += wL[c] * fL[c][d];
                 psiR[d] += wR[c] * fR[c][d];
             }
@@ -200,7 +191,7 @@ TEST(EulerFluxTests, EntropyConservationTest2D) {
         for (unsigned int d = 0; d < 2; d++) {
             psiL[d] = 0.0;
             psiR[d] = 0.0;
-            for (unsigned int c = 0; c < 4; c++) {
+            for (unsigned int c = 0; c < 5; c++) {
                 psiL[d] += wL[c] * fL[c][d];
                 psiR[d] += wR[c] * fR[c][d];
             }
@@ -260,7 +251,7 @@ TEST(EulerFluxTests, EntropyDissipationTest2D) {
         for (unsigned int d = 0; d < 2; d++) {
             psiL[d] = 0.0;
             psiR[d] = 0.0;
-            for (unsigned int c = 0; c < 4; c++) {
+            for (unsigned int c = 0; c < 5; c++) {
                 psiL[d] += wL[c] * fL[c][d];
                 psiR[d] += wR[c] * fR[c][d];
             }

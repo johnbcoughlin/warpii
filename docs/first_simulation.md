@@ -24,13 +24,13 @@ end
 
 subsection Species_1
     subsection InitialCondition
-        # We will specify primitive variables: [rho, u, p].
+        # We will specify primitive variables: [rho, u_x, u_y, u_z, p].
         set VariablesType = Primitive
         set Function constants = pi=3.1415926535
 
         # The initial condition is specified using a parsed function.
         # The function components are separated by semicolons.
-        set Function expression = 1 + 0.6 * sin(2*pi*x); 1.0; 1.0
+        set Function expression = 1 + 0.6 * sin(2*pi*x); 1.0; 0.0; 0.0; 1.0
     end
 end
 ```
