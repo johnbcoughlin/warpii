@@ -9,7 +9,7 @@ cd warpii
 ```
 - Create a user environment file:
 ```
-echo 'export WARPIISOFT=$HOME/warpiisoft' > warpii.user.env
+echo 'export WARPIISOFT=${HOME}/warpiisoft' > warpii.user.env
 ```
 - Select a CMake preset:
 ```
