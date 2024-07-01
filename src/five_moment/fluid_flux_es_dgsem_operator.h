@@ -24,6 +24,7 @@
 #include "fluxes/split_form_volume_flux.h"
 #include "fluxes/jacobian_utils.h"
 #include "../dgsem/persson_peraire_shock_indicator.h"
+#include "../rk.h"
 
 namespace warpii {
 namespace five_moment {
@@ -44,7 +45,7 @@ struct ScratchData {
 struct CopyData {};
 
 template <int dim>
-class FluidFluxESDGSEMOperator {
+class FluidFluxESDGSEMOperator : ForwardEulerOperator<FiveMSolutionVec> {
    public:
     FluidFluxESDGSEMOperator(
         std::shared_ptr<NodalDGDiscretization<dim>> discretization,
@@ -63,9 +64,7 @@ class FluidFluxESDGSEMOperator {
         FiveMSolutionVec &dst, const FiveMSolutionVec &u,
         std::vector<FiveMSolutionVec> &sol_registers, const double dt,
         const double t, 
-        const double alpha = 1.0,
-        const double beta = 0.0,
-        const ZeroOutPolicy zero_out_policy=DO_NOT_ZERO_DST_VECTOR);
+        const double b, const double a, const double c) override;
 
     double recommend_dt(const MatrixFree<dim, double> &mf,
                         const FiveMSolutionVec &sol);
@@ -128,8 +127,7 @@ template <int dim>
 void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
     FiveMSolutionVec &dst, const FiveMSolutionVec &u,
     std::vector<FiveMSolutionVec> &sol_registers, const double dt,
-    const double t, const double alpha, const double beta,
-    const ZeroOutPolicy zero_out_policy) {
+    const double t, const double b, const double a, const double c) {
     using Iterator = typename DoFHandler<1>::active_cell_iterator;
 
     auto Mdudt_register = sol_registers.at(0);
@@ -180,9 +178,10 @@ void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
                                             d_dt_boundary_integrated_fluxes);
         };
 
+        const bool zero_out_register = true;
         discretization->mf.loop(
             cell_operation, face_operation, boundary_operation,
-            Mdudt_register.mesh_sol, u.mesh_sol, zero_out_policy == DO_ZERO_DST_VECTOR,
+            Mdudt_register.mesh_sol, u.mesh_sol, zero_out_register,
             MatrixFree<dim, double>::DataAccessOnFaces::values,
             MatrixFree<dim, double>::DataAccessOnFaces::values);
     }
@@ -200,15 +199,14 @@ void FluidFluxESDGSEMOperator<dim>::perform_forward_euler_step(
                     const double dst_i = dst.mesh_sol.local_element(i);
                     const double u_i = u.mesh_sol.local_element(i);
                     dst.mesh_sol.local_element(i) =
-                        beta * dst_i + alpha * (u_i + dt * dudt_i);
+                        b * dst_i + a * u_i + c * dt * dudt_i;
                 }
             });
-        // dst = beta * dest + alpha * (u + dt * dudt)
+        // dst = beta * dest + a * u + c * dt * dudt
         if (!dst.boundary_integrated_fluxes.is_empty()) {
+            dst.boundary_integrated_fluxes.sadd(b, a, u.boundary_integrated_fluxes);
             dst.boundary_integrated_fluxes.sadd(
-                beta, alpha * dt, dudt_register.boundary_integrated_fluxes);
-            dst.boundary_integrated_fluxes.sadd(1.0, alpha,
-                                                u.boundary_integrated_fluxes);
+                1.0, c * dt, dudt_register.boundary_integrated_fluxes);
         }
     }
 }

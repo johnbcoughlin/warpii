@@ -102,6 +102,8 @@ void FiveMomentApp<dim>::declare_parameters(ParameterHandler &prm,
     unsigned int n_species = prm.get_integer("n_species");
     unsigned int n_boundaries = prm.get_integer("n_boundaries");
 
+    PlasmaNormalization::declare_parameters(prm);
+
     std::vector<Species<dim>> species;
     for (unsigned int i = 0; i < n_species; i++) {
         std::stringstream subsection_name;
@@ -110,6 +112,7 @@ void FiveMomentApp<dim>::declare_parameters(ParameterHandler &prm,
         Species<dim>::declare_parameters(prm, n_boundaries);
         prm.leave_subsection();
     }
+    PHMaxwellFields<dim>::declare_parameters(prm, n_boundaries);
 
     Grid<dim>::declare_parameters(prm, ext);
 
@@ -155,6 +158,8 @@ std::unique_ptr<FiveMomentApp<dim>> FiveMomentApp<dim>::create_from_parameters(
 
     double gas_gamma = prm.get_double("gas_gamma");
 
+    PlasmaNormalization plasma_norm = PlasmaNormalization::create_from_parameters(prm);
+
     std::vector<std::shared_ptr<Species<dim>>> species;
     for (unsigned int i = 0; i < n_species; i++) {
         std::stringstream subsection_name;
@@ -164,6 +169,8 @@ std::unique_ptr<FiveMomentApp<dim>> FiveMomentApp<dim>::create_from_parameters(
             Species<dim>::create_from_parameters(prm, n_boundaries, gas_gamma));
         prm.leave_subsection();
     }
+    auto fields = PHMaxwellFields<dim>::create_from_parameters(
+            prm, n_boundaries, plasma_norm);
 
     auto grid = Grid<dim>::create_from_parameters(prm, 
             std::static_pointer_cast<GridExtension<dim>>(ext));
@@ -178,13 +185,11 @@ std::unique_ptr<FiveMomentApp<dim>> FiveMomentApp<dim>::create_from_parameters(
     bool write_output = prm.get_bool("write_output");
     unsigned int n_writeout_frames = prm.get_integer("n_writeout_frames");
 
-    unsigned int n_nonmesh_unknowns = n_boundaries;
-
     auto discretization = std::make_shared<NodalDGDiscretization<dim>>(
         grid, n_components, fe_degree);
 
     auto dg_solver = std::make_unique<FiveMomentDGSolver<dim>>(
-        discretization, species, gas_gamma, t_end, n_nonmesh_unknowns);
+        discretization, species, fields, gas_gamma, t_end, n_boundaries, fields_enabled);
 
     auto app = std::make_unique<FiveMomentApp<dim>>(ext, discretization, species,
                                                     grid, std::move(dg_solver),

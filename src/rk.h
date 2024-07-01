@@ -4,6 +4,7 @@
 #include <deal.II/lac/la_parallel_vector.h>
 
 #include "defs.h"
+#include "dof_utils.h"
 
 using namespace dealii;
 
@@ -76,6 +77,38 @@ class LowStorageRungeKuttaIntegrator {
     std::vector<double> ci;
 };
 
+template <typename SolutionVec>
+class ForwardEulerOperator {
+    public:
+        ~ForwardEulerOperator() = default;
+
+        /**
+         * Compute the single step
+         *
+         * ```
+         * dst = b*dst + a*u + c*dt*f(u)),
+         * ```
+         *
+         * where f is the RHS function provided by this operator.
+         *
+         * If `alpha` and `beta` take their default values, this reduces
+         * to the simple Forward Euler step
+         *
+         * ```
+         * dst = u + dt * f(u)
+         * ```
+         */
+        virtual void perform_forward_euler_step(
+                SolutionVec &dst,
+                const SolutionVec &u,
+                std::vector<SolutionVec> &sol_registers,
+                const double dt,
+                const double t,
+                const double b = 0.0,
+                const double a = 1.0,
+                const double c = 1.0) = 0;
+};
+
 template <typename Number, typename SolutionVec, typename Operator>
 class SSPRK2Integrator {
    public:
@@ -102,7 +135,7 @@ void SSPRK2Integrator<Number, SolutionVec, Operator>::evolve_one_time_step(
     forward_euler_operator.perform_forward_euler_step(
         f_1, solution, sol_registers, dt, t);
     forward_euler_operator.perform_forward_euler_step(
-        solution, f_1, sol_registers, dt, t + dt, 0.5, 0.5);
+        solution, f_1, sol_registers, dt, t + dt, 0.5, 0.5, 0.5);
 }
 
 template <typename Number, typename SolutionVec, typename Operator>
